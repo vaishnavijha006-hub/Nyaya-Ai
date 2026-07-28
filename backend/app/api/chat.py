@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.services.llm import ask_llm
+from app.rag.pipeline import detect_language
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +21,9 @@ class ChatResponse(BaseModel):
 @router.post("/", response_model=ChatResponse)
 def chat(request: ChatRequest):
     try:
-        logger.info(f"Received chat request: {request.question}")
-        answer = ask_llm(request.question)
+        lang = detect_language(request.question)
+        logger.info(f"Received chat request | lang={lang!r} | question={request.question!r}")
+        answer = ask_llm(request.question, language=lang)
         return ChatResponse(answer=answer)
     except Exception as exc:
         logger.error(f"Error in chat endpoint: {exc}")

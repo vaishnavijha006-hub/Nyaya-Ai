@@ -154,7 +154,7 @@ def ask_rag(question: str) -> dict:
     logger.debug(f"[pipeline] Total context length: {len(context)} chars")
 
     # ── Step 5: LLM Generation ────────────────────────────────────────────────
-    answer = ask_llm_rag(question=question, context=context)
+    answer = ask_llm_rag(question=question, context=context, language=lang)
     logger.info("[pipeline] LLM generation complete.")
 
     # ── Step 6: Build serializable source list ────────────────────────────────

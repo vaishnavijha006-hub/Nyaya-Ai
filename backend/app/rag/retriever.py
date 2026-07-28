@@ -30,7 +30,10 @@ import re
 from typing import Optional
 
 from langchain_chroma import Chroma
-from app.rag.embedder import embeddings, DB_PATH, COLLECTION_NAME
+from app.rag.embedder import get_embeddings, DB_PATH, COLLECTION_NAME
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Anchor DB path to backend/ directory regardless of where Python is run from
 # retriever.py lives at: backend/app/rag/retriever.py → go up 3 levels
@@ -55,7 +58,7 @@ def _get_db() -> Chroma:
     """Load the persisted Chroma vector store."""
     return Chroma(
         persist_directory=_ABS_DB_PATH,
-        embedding_function=embeddings,
+        embedding_function=get_embeddings(),
         collection_name=COLLECTION_NAME,
     )
 
@@ -128,7 +131,7 @@ def retrieve(query: str, k: int = 6) -> list:
 
     # Stage 1: Metadata-filtered retrieval for specific article queries
     if article_num:
-        print(f"[retriever] Detected Article {article_num} in query — applying metadata filter")
+        logger.info(f"Detected Article {article_num} in query — applying metadata filter")
         try:
             filter_results = db.similarity_search(
                 query=query,
@@ -136,14 +139,18 @@ def retrieve(query: str, k: int = 6) -> list:
                 filter={"primary_article": article_num},
             )
             if len(filter_results) >= 2:
-                print(f"[retriever] Metadata filter returned {len(filter_results)} chunks")
+                logger.info(f"Metadata filter returned {len(filter_results)} chunks")
                 return filter_results
             else:
-                print(f"[retriever] Filter returned only {len(filter_results)} chunks — falling back to MMR")
+                logger.info(f"Filter returned only {len(filter_results)} chunks — falling back to MMR")
         except Exception as exc:
-            print(f"[retriever] Metadata filter failed ({exc}) — falling back to MMR")
+            logger.error(f"Metadata filter failed ({exc}) — falling back to MMR")
 
     # Stage 2: MMR fallback for general queries or when filter yields too few results
-    print(f"[retriever] Using MMR search (fetch_k=30, k={k})")
-    retriever = get_retriever(k=k)
-    return retriever.invoke(query)
+    logger.info(f"Using MMR search (fetch_k=30, k={k})")
+    try:
+        retriever = get_retriever(k=k)
+        return retriever.invoke(query)
+    except Exception as exc:
+        logger.error(f"MMR search failed: {exc}")
+        raise

@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Reveal } from '@/components/nyaya/reveal';
 import { AIResponseCard } from '@/components/nyaya/ai-response-card';
 import { TypingDots, ThinkingPulse } from '@/components/nyaya/loading';
-import { getLegalAnswer, suggestedPrompts } from '@/lib/legal-engine';
+import { getLegalAnswer, suggestedPrompts, type LegalAnswer } from '@/lib/legal-engine';
 import { SiteHeader } from '@/components/nyaya/site-header';
 import { SiteFooter } from '@/components/nyaya/site-footer';
 
@@ -141,16 +141,15 @@ function Features() {
 function Demo() {
   const [query, setQuery] = React.useState(suggestedPrompts[0]);
   const [stage, setStage] = React.useState<'idle' | 'thinking' | 'done'>('idle');
-  const [answer, setAnswer] = React.useState<ReturnType<typeof getLegalAnswer> | null>(null);
+  const [answer, setAnswer] = React.useState<LegalAnswer | null>(null);
 
-  const run = React.useCallback(() => {
+  const run = React.useCallback(async () => {
     if (!query.trim()) return;
     setStage('thinking');
     setAnswer(null);
-    setTimeout(() => {
-      setAnswer(getLegalAnswer(query));
-      setStage('done');
-    }, 1500);
+    const result = await getLegalAnswer(query);
+    setAnswer(result);
+    setStage('done');
   }, [query]);
 
   React.useEffect(() => {

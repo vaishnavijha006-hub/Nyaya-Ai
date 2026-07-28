@@ -1,8 +1,10 @@
-from fastapi import APIRouter
+import logging
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.services.llm import ask_llm_rag
 from app.rag.pipeline import ask_rag
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/llm", tags=["llm"])
 
@@ -14,4 +16,9 @@ def rag_chat(request: RagRequest):
     """
     RAG-grounded LLM endpoint.
     """
-    return ask_rag(request.question)
+    try:
+        logger.info(f"Received RAG request: {request.question}")
+        return ask_rag(request.question)
+    except Exception as exc:
+        logger.error(f"Error in RAG endpoint: {exc}")
+        raise HTTPException(status_code=500, detail=str(exc))

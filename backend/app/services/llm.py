@@ -1,11 +1,18 @@
 import os
+import functools
+import logging
 
 from dotenv import load_dotenv
 from groq import Groq
 
 load_dotenv()
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+logger = logging.getLogger(__name__)
+
+@functools.lru_cache(maxsize=1)
+def get_groq_client():
+    logger.info("Initializing Groq client...")
+    return Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 # ── RAG system prompt ────────────────────────────────────────────────────────
 # This is used exclusively when answering questions grounded in retrieved context.
@@ -35,15 +42,21 @@ def ask_llm(question: str) -> str:
     General-purpose LLM call with no context grounding.
     Use for non-RAG queries (e.g., greetings, clarifications).
     """
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {"role": "system", "content": _GENERAL_SYSTEM_PROMPT},
-            {"role": "user", "content": question},
-        ],
-        temperature=0.3,
-    )
-    return response.choices[0].message.content
+    client = get_groq_client()
+    logger.info(f"Asking LLM general question: {question}")
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": _GENERAL_SYSTEM_PROMPT},
+                {"role": "user", "content": question},
+            ],
+            temperature=0.3,
+        )
+        return response.choices[0].message.content
+    except Exception as exc:
+        logger.error(f"ask_llm failed: {exc}")
+        raise
 
 
 def ask_llm_rag(question: str, context: str) -> str:
@@ -59,21 +72,27 @@ def ask_llm_rag(question: str, context: str) -> str:
     - Context is injected properly into the user message, not mixed with
       role instructions (which caused conflicting LLM behavior previously).
     """
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {"role": "system", "content": _RAG_SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": (
-                    "Context from the Constitution of India:\n\n"
-                    f"{context}\n\n"
-                    "---\n\n"
-                    f"Question: {question}"
-                ),
-            },
-        ],
-        temperature=0.1,    # Low temp = more deterministic, less hallucination
-        max_tokens=1024,
-    )
-    return response.choices[0].message.content
+    client = get_groq_client()
+    logger.info(f"Asking LLM RAG question: {question}")
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": _RAG_SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": (
+                        "Context from the Constitution of India:\n\n"
+                        f"{context}\n\n"
+                        "---\n\n"
+                        f"Question: {question}"
+                    ),
+                },
+            ],
+            temperature=0.1,    # Low temp = more deterministic, less hallucination
+            max_tokens=1024,
+        )
+        return response.choices[0].message.content
+    except Exception as exc:
+        logger.error(f"ask_llm_rag failed: {exc}")
+        raise

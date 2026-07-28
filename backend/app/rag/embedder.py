@@ -25,20 +25,25 @@ import shutil
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 
+import functools
+
 # Relative path from backend/ directory
 DB_PATH = "vector-db"
 COLLECTION_NAME = "nyaya_constitution"
 
-embeddings = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2",
-    model_kwargs={"device": "cpu"},
-    encode_kwargs={
-        # CRITICAL: normalize to unit vectors before storing.
-        # Chroma's default distance metric is cosine similarity, which requires
-        # normalized vectors. Without this, ranking is wrong.
-        "normalize_embeddings": True
-    },
-)
+@functools.lru_cache(maxsize=1)
+def get_embeddings():
+    print("[embedder] Initializing HuggingFace embeddings model...")
+    return HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        model_kwargs={"device": "cpu"},
+        encode_kwargs={
+            # CRITICAL: normalize to unit vectors before storing.
+            # Chroma's default distance metric is cosine similarity, which requires
+            # normalized vectors. Without this, ranking is wrong.
+            "normalize_embeddings": True
+        },
+    )
 
 
 def create_vector_db(chunks: list, reset: bool = True) -> Chroma:
@@ -60,7 +65,7 @@ def create_vector_db(chunks: list, reset: bool = True) -> Chroma:
     print(f"[embedder] Indexing {len(chunks)} chunks...")
     db = Chroma.from_documents(
         documents=chunks,
-        embedding=embeddings,
+        embedding=get_embeddings(),
         persist_directory=DB_PATH,
         collection_name=COLLECTION_NAME,
     )

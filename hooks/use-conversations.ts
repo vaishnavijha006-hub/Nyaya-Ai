@@ -94,8 +94,8 @@ export function useConversation(conversationId: string | null) {
       const pendingId = crypto.randomUUID();
       setMessages((m) => [...m, { id: pendingId, role: 'assistant', content: '', pending: true }]);
 
-      const answer = getLegalAnswer(text);
-      await new Promise((r) => setTimeout(r, 1400));
+      // Call the real FastAPI backend (async)
+      const answer = await getLegalAnswer(text);
 
       setMessages((m) =>
         m.map((msg) =>

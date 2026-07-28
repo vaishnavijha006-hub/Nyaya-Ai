@@ -1,31 +1,17 @@
-import os
+from fastapi import APIRouter
+from pydantic import BaseModel
 
-from dotenv import load_dotenv
-from groq import Groq
+from app.services.llm import ask_llm_rag
+from app.rag.pipeline import ask_rag
 
-load_dotenv()
+router = APIRouter(prefix="/llm", tags=["llm"])
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+class RagRequest(BaseModel):
+    question: str
 
-
-def ask_llm(question: str) -> str:
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are Nyaya AI, an AI legal assistant. "
-                    "Provide clear, concise legal information. "
-                    "Do not claim to be a lawyer."
-                ),
-            },
-            {
-                "role": "user",
-                "content": question,
-            },
-        ],
-        temperature=0.3,
-    )
-
-    return response.choices[0].message.content
+@router.post("/rag")
+def rag_chat(request: RagRequest):
+    """
+    RAG-grounded LLM endpoint.
+    """
+    return ask_rag(request.question)

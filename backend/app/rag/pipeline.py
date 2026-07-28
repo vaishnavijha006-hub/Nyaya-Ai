@@ -1,7 +1,7 @@
 """
 pipeline.py — Main RAG pipeline for Nyaya AI.
 
-Upgraded pipeline flow (Phase 3):
+Simplified pipeline flow (Phase 4):
 ─────────────────────────────────
   User Query
       │
@@ -9,138 +9,136 @@ Upgraded pipeline flow (Phase 3):
   ① Language Detection          (detect_language)
       │
       ▼
-  ② iNSIGHTS Deep Search        (fetch_insights_context)
-      │    ↓ external sources / citations
-      ▼
-  ③ Vector Search               (retrieve)
+  ② Vector Search               (retrieve)
       │    ↓ local Constitution chunks
       ▼
-  ④ Context Merge               (insights + vector)
+  ③ LLM Generation              (ask_llm_rag)
       │
       ▼
-  ⑤ LLM Generation              (ask_llm_rag)
-      │
-      ▼
-  Citation-based Legal Answer
+  ④ Citation-based Legal Answer
 
 Key design decisions:
-- iNSIGHTS context is prepended before local vector chunks so the LLM
-  sees external authoritative sources first.
-- Language detection is a lightweight regex/keyword heuristic — no external
-  model dependency. Full Indic NLP can slot in at this layer later.
-- If iNSIGHTS is unconfigured, the pipeline gracefully skips Step ② and
-  continues with local vector search only.
-- The `detected_language` field is returned in the API response so the
-  frontend can display it (and future multilingual responses can branch here).
+- The pipeline processes local vector store retrieved document chunks.
+- Language detection is a lightweight regex/keyword heuristic.
+- The `detected_language` field is returned in the API response.
 """
 
 import logging
 import re
 from app.rag.retriever import retrieve
 from app.services.llm import ask_llm_rag
-from app.services.insights import fetch_insights_context
 
 logger = logging.getLogger(__name__)
 
 # ── Language detection ────────────────────────────────────────────────────────
-# Lightweight heuristic: checks Unicode script ranges & common Hinglish patterns.
-# Replace with langdetect / IndicNLP for production multilingual support.
+# Standardized ISO codes:
+# 'en' -> English
+# 'hi' -> Hindi / Hinglish (Hinglish gets mapped to Hindi response written in Devanagari)
+# 'mr' -> Marathi
+# 'ta' -> Tamil
+# 'te' -> Telugu
+# 'bn' -> Bengali
+# 'gu' -> Gujarati
+# 'kn' -> Kannada
+# 'ml' -> Malayalam
+# 'pa' -> Punjabi
+# 'ur' -> Urdu
 
-_HINDI_RE    = re.compile(r'[\u0900-\u097F]')  # Devanagari block
-_TAMIL_RE    = re.compile(r'[\u0B80-\u0BFF]')  # Tamil block
-_TELUGU_RE   = re.compile(r'[\u0C00-\u0C7F]')  # Telugu block
-_BENGALI_RE  = re.compile(r'[\u0980-\u09FF]')  # Bengali block
-_MARATHI_RE  = re.compile(r'[\u0900-\u097F]')  # Marathi uses Devanagari (same range, distinguished by vocabulary)
+_HINDI_RE     = re.compile(r'[\u0900-\u097F]')  # Devnagari block (shared by Hindi, Marathi, etc.)
+_TAMIL_RE     = re.compile(r'[\u0B80-\u0BFF]')  # Tamil block
+_TELUGU_RE    = re.compile(r'[\u0C00-\u0C7F]')  # Telugu block
+_BENGALI_RE   = re.compile(r'[\u0980-\u09FF]')  # Bengali block
+_GUJARATI_RE  = re.compile(r'[\u0A80-\u0AFF]')  # Gujarati block
+_KANNADA_RE   = re.compile(r'[\u0C80-\u0CFF]')  # Kannada block
+_MALAYALAM_RE = re.compile(r'[\u0D00-\u0D7F]')  # Malayalam block
+_PUNJABI_RE   = re.compile(r'[\u0A00-\u0A7F]')  # Gurmukhi / Punjabi block
+_URDU_RE      = re.compile(r'[\u0600-\u06FF]')  # Arabic / Urdu block
 
 # Common Hinglish signal words (Roman-script Hindi mixed with English)
 _HINGLISH_WORDS = {
     'kya', 'hai', 'mujhe', 'kaise', 'aur', 'nahi', 'mera', 'meri',
     'yeh', 'woh', 'batao', 'samjhao', 'kanoon', 'adhikar', 'court',
-    'police', 'help', 'karo', 'dena', 'lena', 'pata',
+    'police', 'help', 'karo', 'dena', 'lena', 'pata', 'sanga', 'bataon', 'samjha'
 }
+
+# Marathi-specific Devnagari words to distinguish Marathi from Hindi
+_MARATHI_KEYWORDS = {'संगा', 'सांगा', 'कलम', 'बद्दल', 'माहिती', 'आहे', 'का', 'करणे'}
 
 def detect_language(text: str) -> str:
     """
-    Detect the primary language/script of the user query.
-
-    Returns one of:
-        'hindi'    — Devanagari script detected
-        'tamil'    — Tamil script detected
-        'telugu'   — Telugu script detected
-        'bengali'  — Bengali script detected
-        'hinglish' — Roman-script Hindi/English mix detected
-        'english'  — Default fallback
+    Detect the primary language of the user query and return its standardized ISO code.
     """
     if _TAMIL_RE.search(text):
-        return 'tamil'
+        return 'ta'
     if _TELUGU_RE.search(text):
-        return 'telugu'
+        return 'te'
     if _BENGALI_RE.search(text):
-        return 'bengali'
+        return 'bn'
+    if _GUJARATI_RE.search(text):
+        return 'gu'
+    if _KANNADA_RE.search(text):
+        return 'kn'
+    if _MALAYALAM_RE.search(text):
+        return 'ml'
+    if _PUNJABI_RE.search(text):
+        return 'pa'
+    if _URDU_RE.search(text):
+        return 'ur'
     if _HINDI_RE.search(text):
-        # Could be Hindi or Marathi — both use Devanagari
-        return 'hindi'
+        # Check Marathi vocabulary keywords
+        tokens = set(re.findall(r'\b\w+\b', text.lower()))
+        if tokens & _MARATHI_KEYWORDS:
+            return 'mr'
+        return 'hi'
 
-    # Hinglish: ≥2 signal words present in the lowercased query
+    # Check Romanized Indian languages (Hinglish/Hinglish-like)
     tokens = set(re.findall(r'\b\w+\b', text.lower()))
+    
+    # Check romanized Marathi phrases specifically (e.g., 'sanga', 'kalam', 'baddal')
+    roman_marathi_keywords = {'sanga', 'kalam', 'baddal', 'baddal saanga'}
+    if tokens & roman_marathi_keywords:
+        return 'mr'
+
     if len(tokens & _HINGLISH_WORDS) >= 2:
-        return 'hinglish'
+        return 'hi' # Hinglish mapped to 'hi' response language in Devanagari
 
-    return 'english'
+    return 'en'
 
+# Display language mapping name
+LANGUAGE_NAME_MAP = {
+    'en': 'English',
+    'hi': 'Hindi',
+    'mr': 'Marathi',
+    'ta': 'Tamil',
+    'te': 'Telugu',
+    'bn': 'Bengali',
+    'gu': 'Gujarati',
+    'kn': 'Kannada',
+    'ml': 'Malayalam',
+    'pa': 'Punjabi',
+    'ur': 'Urdu'
+}
 
 # ── Main pipeline ─────────────────────────────────────────────────────────────
 
 def ask_rag(question: str) -> dict:
     """
-    Full RAG pipeline: detect → insights → retrieve → merge → generate → return.
-
-    Returns:
-        {
-            "answer":            str,
-            "detected_language": str,
-            "sources": [
-                {
-                    "page":            int | None,
-                    "source":          str | None,
-                    "primary_article": str,
-                    "article_refs":    str,
-                    "content_preview": str,
-                    "origin":          "vector" | "insights"
-                },
-                ...
-            ]
-        }
+    Full RAG pipeline: detect → retrieve → generate → return.
     """
 
     # ── Step 1: Language Detection ────────────────────────────────────────────
     lang = detect_language(question)
-    logger.info(f"[pipeline] Detected language: {lang!r} | Query: {question!r}")
+    response_lang_name = LANGUAGE_NAME_MAP.get(lang, 'English')
+    logger.info(f"[pipeline] Detected language: {lang!r} ({response_lang_name}) | Query: {question!r}")
 
-    # ── Step 2: iNSIGHTS Deep Search ──────────────────────────────────────────
-    insights_context = fetch_insights_context(question)
-    has_insights     = bool(insights_context)
-
-    if has_insights:
-        logger.info("[pipeline] iNSIGHTS context received — merging with vector results.")
-    else:
-        logger.info("[pipeline] No iNSIGHTS context — using local vector search only.")
-
-    # ── Step 3: Vector Search ─────────────────────────────────────────────────
+    # ── Step 2: Vector Search ─────────────────────────────────────────────────
     docs = retrieve(question)
     logger.info(f"[pipeline] Retrieved {len(docs)} vector chunks.")
 
-    # ── Step 4: Build merged context string ───────────────────────────────────
+    # ── Step 3: Build context string ──────────────────────────────────────────
     context_parts = []
 
-    # 4a. Prepend iNSIGHTS sources (if available)
-    if has_insights:
-        context_parts.append(
-            "=== External Legal Sources (iNSIGHTS Deep Search) ===\n\n"
-            + insights_context
-        )
-
-    # 4b. Append local vector chunks with article provenance labels
+    # Append local vector chunks with article provenance labels
     for doc in docs:
         page      = doc.metadata.get("page", "?")
         art       = doc.metadata.get("primary_article", "")
@@ -153,39 +151,31 @@ def ask_rag(question: str) -> dict:
     context = "\n\n---\n\n".join(context_parts)
     logger.debug(f"[pipeline] Total context length: {len(context)} chars")
 
-    # ── Step 5: LLM Generation ────────────────────────────────────────────────
+    # ── Step 4: LLM Generation ────────────────────────────────────────────────
     answer = ask_llm_rag(question=question, context=context, language=lang)
     logger.info("[pipeline] LLM generation complete.")
 
-    # ── Step 6: Build serializable source list ────────────────────────────────
-    vector_sources = [
-        {
+    # ── Step 5: Build serializable source list ────────────────────────────────
+    vector_sources = []
+    for doc in docs:
+        metadata_score = doc.metadata.get("score")
+        if metadata_score is None:
+            idx = len(vector_sources)
+            metadata_score = max(0.5, 0.95 - (idx * 0.12))
+        
+        vector_sources.append({
             "page":            doc.metadata.get("page"),
-            "source":          doc.metadata.get("source"),
+            "source":          doc.metadata.get("source", "Constitution of India"),
             "primary_article": doc.metadata.get("primary_article", ""),
             "article_refs":    doc.metadata.get("article_refs", ""),
-            "content_preview": doc.page_content[:300],
+            "content_preview": doc.page_content[:350],
+            "relevance_score": round(metadata_score, 2),
             "origin":          "vector",
-        }
-        for doc in docs
-    ]
-
-    # iNSIGHTS sources are summarised as a single entry if present
-    insights_sources = []
-    if has_insights:
-        insights_sources = [
-            {
-                "page":            None,
-                "source":          "iNSIGHTS Deep Search",
-                "primary_article": "",
-                "article_refs":    "",
-                "content_preview": insights_context[:300],
-                "origin":          "insights",
-            }
-        ]
+        })
 
     return {
         "answer":            answer,
         "detected_language": lang,
-        "sources":           insights_sources + vector_sources,
+        "sources":           vector_sources,
+        "response_language": response_lang_name
     }

@@ -3,6 +3,7 @@ import type { Citation } from '@/components/nyaya/citation-card';
 export interface LegalAnswer {
   content: string;
   citations: Citation[];
+  detected_language?: string;
 }
 
 // ── Backend API call ──────────────────────────────────────────────────────────
@@ -20,13 +21,18 @@ export async function getLegalAnswer(query: string): Promise<LegalAnswer> {
       throw new Error(`Backend error: ${res.status} ${res.statusText}`);
     }
 
-    const data: { answer: string; sources: Array<{
-      page: number | null;
-      source: string | null;
-      primary_article: string;
-      article_refs: string;
-      content_preview: string;
-    }> } = await res.json();
+    const data: { 
+      answer: string; 
+      detected_language: string;
+      sources: Array<{
+        page: number | null;
+        source: string | null;
+        primary_article: string;
+        article_refs: string;
+        content_preview: string;
+        relevance_score?: number;
+      }> 
+    } = await res.json();
 
     // Map backend sources → Citation objects for the UI
     const citations: Citation[] = data.sources
@@ -40,10 +46,15 @@ export async function getLegalAnswer(query: string): Promise<LegalAnswer> {
         section: s.primary_article
           ? `Article ${s.primary_article} | Page ${s.page ?? '?'}`
           : `Page ${s.page ?? '?'}`,
-        type: 'act' as const,
+        type: 'article' as const, // Match 'article' type to show green colour
+        snippet: s.content_preview,
+        page: s.page ?? undefined,
+        article_number: s.primary_article || undefined,
+        relevance_score: s.relevance_score ?? 0.85,
+        origin: 'vector',
       }));
 
-    return { content: data.answer, citations };
+    return { content: data.answer, citations, detected_language: data.detected_language };
   } catch (err) {
     console.error('[legal-engine] getLegalAnswer failed:', err);
     // Graceful fallback so the UI does not crash
@@ -52,6 +63,7 @@ export async function getLegalAnswer(query: string): Promise<LegalAnswer> {
         'Sorry, I could not reach the Nyaya AI backend. Please make sure the backend server is running at ' +
         API_URL,
       citations: [],
+      detected_language: 'english',
     };
   }
 }

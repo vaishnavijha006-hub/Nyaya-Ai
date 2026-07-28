@@ -12,7 +12,25 @@ export interface AIResponse {
   content: string;
   citations?: Citation[];
   pending?: boolean;
+  detected_language?: string;
 }
+
+import { ResearchNotesPanel } from '@/components/nyaya/research-notes-panel';
+
+// Localized flag configurations mapped to ISO language codes
+const languageMeta: Record<string, { flag: string; label: string; style: string }> = {
+  en: { flag: '🇬🇧', label: 'English', style: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' },
+  hi: { flag: '🇮🇳', label: 'Hindi', style: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20' },
+  mr: { flag: '🇮🇳', label: 'Marathi', style: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' },
+  ta: { flag: '🇮🇳', label: 'Tamil', style: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20' },
+  te: { flag: '🇮🇳', label: 'Telugu', style: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
+  bn: { flag: '🇮🇳', label: 'Bengali', style: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20' },
+  gu: { flag: '🇮🇳', label: 'Gujarati', style: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20' },
+  kn: { flag: '🇮🇳', label: 'Kannada', style: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20' },
+  ml: { flag: '🇮🇳', label: 'Malayalam', style: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' },
+  pa: { flag: '🇮🇳', label: 'Punjabi', style: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20' },
+  ur: { flag: '🇮🇳', label: 'Urdu', style: 'bg-stone-500/10 text-stone-600 dark:text-stone-400 border-stone-500/20' }
+};
 
 export function AIResponseCard({ response }: { response: AIResponse }) {
   const [copied, setCopied] = React.useState(false);
@@ -28,6 +46,9 @@ export function AIResponseCard({ response }: { response: AIResponse }) {
     }
   };
 
+  const langCode = response.detected_language || 'en';
+  const metaLang = languageMeta[langCode] || { flag: '🇮🇳', label: 'Indic', style: 'bg-accent/10 text-accent border-accent/20' };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 14 }}
@@ -40,10 +61,17 @@ export function AIResponseCard({ response }: { response: AIResponse }) {
           <Sparkles className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="mb-1.5 flex items-center gap-2">
-            <span className="text-sm font-semibold">Nyaya AI</span>
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
-              Verified
+          <div className="mb-1.5 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold">Nyaya AI</span>
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+                Verified
+              </span>
+            </div>
+            
+            <span className={cn('inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-bold shadow-sm uppercase tracking-wide', metaLang.style)}>
+              <span className="text-xs">{metaLang.flag}</span>
+              {metaLang.label}
             </span>
           </div>
           {response.pending ? (
@@ -58,6 +86,10 @@ export function AIResponseCard({ response }: { response: AIResponse }) {
 
           {!response.pending && response.citations && response.citations.length > 0 && (
             <CitationList citations={response.citations} />
+          )}
+
+          {!response.pending && response.citations && response.citations.length > 0 && (
+            <ResearchNotesPanel answer={response.content} citations={response.citations} />
           )}
 
           {!response.pending && (

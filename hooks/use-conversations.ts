@@ -97,13 +97,69 @@ export function useConversation(conversationId: string | null) {
       // Call the real FastAPI backend (async)
       const answer = await getLegalAnswer(text);
 
+      // Save RAG response as a Research Session inside iNSIGHTS Assisted workspace
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Dynamic import or local function calls from useResearch
+          const articles = Array.from(
+            new Set(
+              (answer.citations || [])
+                .map((c) => c.article_number)
+                .filter(Boolean)
+            )
+          ) as string[];
+
+          await supabase.from('research_sessions').insert({
+            user_id: user.id,
+            query: text,
+            answer: answer.content,
+            detected_language: answer.detected_language || 'english',
+            sources: answer.citations || [],
+            articles_retrieved: articles,
+          });
+
+          await supabase.from('analytics_events').insert({
+            user_id: user.id,
+            event_type: 'query',
+            metadata: { query: text, detected_language: answer.detected_language || 'english', articles_count: articles.length }
+          });
+        }
+      } catch (saveErr) {
+        console.error('Failed to log research session automatically:', saveErr);
+      }
+
       setMessages((m) =>
         m.map((msg) =>
           msg.id === pendingId
-            ? { id: pendingId, role: 'assistant', content: answer.content, citations: answer.citations }
+            ? { 
+                id: pendingId, 
+                role: 'assistant', 
+                content: answer.content, 
+                citations: answer.citations,
+                detected_language: answer.detected_language 
+              }
             : msg
         )
       );
+
+      // Try auto-updating conversation title if it is "New Conversation" using first message
+      try {
+        const { data: conv } = await supabase
+          .from('conversations')
+          .select('title')
+          .eq('id', conversationId)
+          .single();
+        if (conv && (conv.title === 'New Conversation' || conv.title === 'New chat')) {
+          const generatedTitle = text.slice(0, 30) + (text.length > 30 ? '...' : '');
+          await supabase
+            .from('conversations')
+            .update({ title: generatedTitle })
+            .eq('id', conversationId);
+        }
+      } catch (titleErr) {
+        console.error('Failed to auto-update conversation title:', titleErr);
+      }
 
       await supabase.from('messages').insert({
         conversation_id: conversationId,

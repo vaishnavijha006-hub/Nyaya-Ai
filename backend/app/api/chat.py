@@ -16,6 +16,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     answer: str
+    detected_language: str
 
 
 @router.post("/", response_model=ChatResponse)
@@ -24,7 +25,7 @@ def chat(request: ChatRequest):
         lang = detect_language(request.question)
         logger.info(f"Received chat request | lang={lang!r} | question={request.question!r}")
         answer = ask_llm(request.question, language=lang)
-        return ChatResponse(answer=answer)
+        return ChatResponse(answer=answer, detected_language=lang)
     except Exception as exc:
         logger.error(f"Error in chat endpoint: {exc}")
         raise HTTPException(status_code=500, detail=str(exc))

@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageSquare, FileText, ScrollText, Settings, Menu, X, Plus, LogOut,
+  FolderOpen, BarChart3,
 } from 'lucide-react';
 import { Logo } from '@/components/nyaya/logo';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,8 @@ import { cn } from '@/lib/utils';
 
 const nav = [
   { href: '/chat', label: 'AI Chat', icon: MessageSquare },
+  { href: '/workspace', label: 'Research Workspace', icon: FolderOpen },
+  { href: '/analytics', label: 'Project Analytics', icon: BarChart3 },
   { href: '/rti', label: 'RTI Generator', icon: FileText },
   { href: '/legal-notice', label: 'Legal Notice', icon: ScrollText },
   { href: '/settings', label: 'Settings', icon: Settings },

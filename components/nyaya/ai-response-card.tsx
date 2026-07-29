@@ -2,10 +2,12 @@
 
 import * as React from 'react';
 import { motion } from 'framer-motion';
-import { Copy, Check, ThumbsUp, ThumbsDown, Sparkles } from 'lucide-react';
+import { Copy, Check, ThumbsUp, ThumbsDown, Sparkles, Volume2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { CitationList, type Citation } from '@/components/nyaya/citation-card';
 import { TypingDots } from '@/components/nyaya/loading';
 import { cn } from '@/lib/utils';
+import { synthesizeSpeech } from '@/lib/speech';
 
 export interface AIResponse {
   id: string;
@@ -35,6 +37,13 @@ const languageMeta: Record<string, { flag: string; label: string; style: string 
 export function AIResponseCard({ response }: { response: AIResponse }) {
   const [copied, setCopied] = React.useState(false);
   const [feedback, setFeedback] = React.useState<'up' | 'down' | null>(null);
+  const [speaking, setSpeaking] = React.useState(false);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+
+  React.useEffect(() => () => {
+    audioRef.current?.pause();
+    if (audioRef.current?.src) URL.revokeObjectURL(audioRef.current.src);
+  }, []);
 
   const copy = async () => {
     try {
@@ -43,6 +52,36 @@ export function AIResponseCard({ response }: { response: AIResponse }) {
       setTimeout(() => setCopied(false), 1800);
     } catch {
       /* clipboard unavailable */
+    }
+  };
+
+  const speak = async (): Promise<void> => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      URL.revokeObjectURL(audioRef.current.src);
+      audioRef.current = null;
+      setSpeaking(false);
+      return;
+    }
+
+    setSpeaking(true);
+    let audioUrl: string | null = null;
+    try {
+      const createdAudioUrl = URL.createObjectURL(await synthesizeSpeech(response.content));
+      audioUrl = createdAudioUrl;
+      const audio = new Audio(createdAudioUrl);
+      audioRef.current = audio;
+      audio.onended = () => {
+        URL.revokeObjectURL(createdAudioUrl);
+        audioRef.current = null;
+        setSpeaking(false);
+      };
+      await audio.play();
+    } catch (error) {
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+      setSpeaking(false);
+      audioRef.current = null;
+      toast.error(error instanceof Error ? error.message : 'Could not play the audio response.');
     }
   };
 
@@ -100,6 +139,17 @@ export function AIResponseCard({ response }: { response: AIResponse }) {
               >
                 {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
                 {copied ? 'Copied' : 'Copy'}
+              </button>
+              <button
+                onClick={speak}
+                aria-label={speaking ? 'Stop audio response' : 'Play audio response'}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground',
+                  speaking && 'text-primary'
+                )}
+              >
+                <Volume2 className="h-3.5 w-3.5" />
+                {speaking ? 'Stop' : 'Listen'}
               </button>
               <button
                 onClick={() => setFeedback('up')}

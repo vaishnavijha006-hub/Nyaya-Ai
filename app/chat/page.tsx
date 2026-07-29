@@ -18,6 +18,7 @@ import {
   useConversations, useConversation, createConversation, deleteConversation,
 } from '@/hooks/use-conversations';
 import { suggestedPrompts } from '@/lib/legal-engine';
+import { transcribeAudio } from '@/lib/speech';
 import { cn } from '@/lib/utils';
 
 export default function ChatPage() {
@@ -175,9 +176,17 @@ function ChatPanel({
 }) {
   const [input, setInput] = React.useState('');
   const [listening, setListening] = React.useState(false);
+  const [transcribing, setTranscribing] = React.useState(false);
   const [files, setFiles] = React.useState<string[]>([]);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = React.useRef<MediaStream | null>(null);
+
+  React.useEffect(() => () => {
+    if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+  }, []);
 
   React.useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -194,31 +203,58 @@ function ChatPanel({
     setFiles([]);
   };
 
-  const toggleVoice = () => {
-    const SR = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-    if (!SR) {
-      toast.error('Voice input is not supported in this browser');
-      return;
-    }
+  const toggleVoice = async (): Promise<void> => {
     if (listening) {
-      setListening(false);
+      mediaRecorderRef.current?.stop();
       return;
     }
-    const rec = new SR();
-    rec.lang = 'en-IN';
-    rec.interimResults = false;
-    rec.onresult = (e: any) => {
-      const text = e.results[0][0].transcript;
-      setInput((prev) => (prev ? `${prev} ${text}` : text));
-    };
-    rec.onend = () => setListening(false);
-    rec.onerror = () => {
+
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      toast.error('Audio recording is not supported in this browser.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks: BlobPart[] = [];
+
+      mediaRecorderRef.current = recorder;
+      mediaStreamRef.current = stream;
+      recorder.ondataavailable = (event: BlobEvent) => {
+        if (event.data.size > 0) chunks.push(event.data);
+      };
+      recorder.onstop = async () => {
+        setListening(false);
+        mediaRecorderRef.current = null;
+        stream.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+
+        if (chunks.length === 0) {
+          toast.error('No audio was recorded. Please try again.');
+          return;
+        }
+
+        setTranscribing(true);
+        try {
+          const text = await transcribeAudio(new Blob(chunks, { type: recorder.mimeType || 'audio/webm' }));
+          setInput((previous) => (previous ? `${previous} ${text}` : text));
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : 'Could not transcribe the recording.');
+        } finally {
+          setTranscribing(false);
+        }
+      };
+      recorder.start();
+      setListening(true);
+      toast.info('Recording started. Click the microphone again when you are done.');
+    } catch (error) {
       setListening(false);
-      toast.error('Could not capture voice input');
-    };
-    rec.start();
-    setListening(true);
-    toast.info('Listening… speak your question');
+      const message = error instanceof DOMException && error.name === 'NotAllowedError'
+        ? 'Microphone permission was denied. Allow microphone access and try again.'
+        : 'Could not access the microphone.';
+      toast.error(message);
+    }
   };
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -345,13 +381,15 @@ function ChatPanel({
             </button>
             <button
               onClick={toggleVoice}
+              disabled={transcribing}
               className={cn(
                 'flex h-10 w-10 items-center justify-center rounded-xl transition-colors',
-                listening ? 'bg-destructive/10 text-destructive' : 'text-muted-foreground hover:bg-accent/10 hover:text-foreground'
+                listening ? 'bg-destructive/10 text-destructive' : 'text-muted-foreground hover:bg-accent/10 hover:text-foreground',
+                transcribing && 'cursor-not-allowed opacity-50'
               )}
-              aria-label="Voice input"
+              aria-label={listening ? 'Stop voice recording' : 'Record voice input'}
             >
-              <Mic className={cn('h-5 w-5', listening && 'animate-pulse')} />
+              <Mic className={cn('h-5 w-5', (listening || transcribing) && 'animate-pulse')} />
             </button>
             <textarea
               value={input}

@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.chat import router as chat_router
 from app.api.llm import router as llm_router
 from app.api.research import router as research_router
+from app.api.rti import router as rti_router
+from app.api.legal_notice import router as legal_notice_router
 
 app = FastAPI(
     title="Nyaya AI API",
@@ -21,6 +23,8 @@ app.add_middleware(
 app.include_router(chat_router)
 app.include_router(llm_router)
 app.include_router(research_router)
+app.include_router(rti_router)
+app.include_router(legal_notice_router)
 
 @app.get("/")
 def root():

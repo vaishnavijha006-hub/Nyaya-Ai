@@ -1,8 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { motion } from 'framer-motion';
-import { ScrollText, Sparkles, Download, Copy, Check, RotateCcw, Info } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ScrollText, Sparkles, Download, Copy, Check, RotateCcw,
+  FileDown, Loader2, Save, History, AlertTriangle, Scale,
+  User, MapPin, FileText, Clock, Globe,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/nyaya/app-shell';
 import { Button } from '@/components/ui/button';
@@ -10,19 +14,75 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Reveal } from '@/components/nyaya/reveal';
-import { ThinkingPulse } from '@/components/nyaya/loading';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  Card, CardContent, CardHeader, CardTitle, CardDescription,
+} from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase-client';
 
-const noticeTypes = [
-  'Recovery of dues',
-  'Cheque bounce (Section 138)',
-  'Property dispute',
-  'Deficient service',
-  'Defective goods',
-  'Non-payment of salary',
-  'Eviction / tenancy',
-  'Other',
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8000';
+
+// ─────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────
+
+const NOTICE_TYPES = [
+  { value: 'Salary Recovery Notice',   icon: '💼' },
+  { value: 'Rent Notice',              icon: '🏠' },
+  { value: 'Consumer Complaint Notice',icon: '🛒' },
+  { value: 'Property Dispute Notice',  icon: '🏛️' },
+  { value: 'Contract Breach Notice',   icon: '📋' },
+  { value: 'Money Recovery Notice',    icon: '💰' },
+  { value: 'Employment Notice',        icon: '👔' },
+  { value: 'Custom Legal Notice',      icon: '⚖️' },
 ];
+
+const LANGUAGES = [
+  { code: 'en',       label: '🇬🇧 English'  },
+  { code: 'hi',       label: '🇮🇳 Hindi'    },
+  { code: 'mr',       label: '🇮🇳 Marathi'  },
+  { code: 'ta',       label: '🇮🇳 Tamil'    },
+  { code: 'te',       label: '🇮🇳 Telugu'   },
+  { code: 'gu',       label: '🇮🇳 Gujarati' },
+  { code: 'bn',       label: '🇮🇳 Bengali'  },
+  { code: 'kn',       label: '🇮🇳 Kannada'  },
+  { code: 'ml',       label: '🇮🇳 Malayalam'},
+  { code: 'pa',       label: '🇮🇳 Punjabi'  },
+  { code: 'ur',       label: '🇵🇰 Urdu'     },
+  { code: 'hinglish', label: '🇮🇳 Hinglish' },
+];
+
+const SKELETON_WIDTHS = [92, 78, 86, 64, 80, 70, 88, 60];
+
+// ─────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────
+
+interface NoticeForm {
+  notice_type: string;
+  sender_name: string;
+  sender_address: string;
+  recipient_name: string;
+  recipient_address: string;
+  subject: string;
+  case_details: string;
+  legal_demand: string;
+  deadline_days: number;
+  language: string;
+}
+
+interface HistoryItem {
+  id: string;
+  notice_type: string;
+  recipient: string;
+  notice: string;
+  language: string;
+  created_at: string;
+}
+
+// ─────────────────────────────────────────────
+// Page entry
+// ─────────────────────────────────────────────
 
 export default function LegalNoticePage() {
   return (
@@ -32,160 +92,390 @@ export default function LegalNoticePage() {
   );
 }
 
+// ─────────────────────────────────────────────
+// Generator
+// ─────────────────────────────────────────────
+
 function LegalNoticeGenerator() {
-  const [form, setForm] = React.useState({
-    senderName: '',
-    senderAddress: '',
-    senderEmail: '',
-    senderPhone: '',
-    recipientName: '',
-    recipientAddress: '',
-    noticeType: noticeTypes[0],
-    subject: '',
-    facts: '',
-    demand: '',
-    reliefAmount: '',
-    responseDays: '15',
+  const [form, setForm] = React.useState<NoticeForm>({
+    notice_type:      NOTICE_TYPES[0].value,
+    sender_name:      '',
+    sender_address:   '',
+    recipient_name:   '',
+    recipient_address:'',
+    subject:          '',
+    case_details:     '',
+    legal_demand:     '',
+    deadline_days:    15,
+    language:         'en',
   });
-  const [generating, setGenerating] = React.useState(false);
-  const [generated, setGenerated] = React.useState<string | null>(null);
-  const [copied, setCopied] = React.useState(false);
 
-  const update = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
-    setForm((f) => ({ ...f, [k]: e.target.value }));
+  const [generating, setGenerating]       = React.useState(false);
+  const [notice, setNotice]               = React.useState<string | null>(null);
+  const [responseLang, setResponseLang]   = React.useState('English');
+  const [copied, setCopied]               = React.useState(false);
+  const [saving, setSaving]               = React.useState(false);
+  const [history, setHistory]             = React.useState<HistoryItem[]>([]);
+  const [showHistory, setShowHistory]     = React.useState(false);
 
-  const generate = () => {
-    if (!form.senderName || !form.recipientName || !form.facts) {
-      toast.error('Please fill in the sender, recipient, and the facts of the matter');
-      return;
-    }
+  // ── Helpers ──────────────────────────────
+  const update =
+    (k: keyof NoticeForm) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+      setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const updateNum =
+    (k: keyof NoticeForm) =>
+    (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm((f) => ({ ...f, [k]: Number(e.target.value) }));
+
+  const validate = () => {
+    if (!form.sender_name.trim())    { toast.error('Sender name is required.');       return false; }
+    if (!form.recipient_name.trim()) { toast.error('Recipient name is required.');    return false; }
+    if (!form.case_details.trim())   { toast.error('Case details cannot be empty.');  return false; }
+    if (!form.legal_demand.trim())   { toast.error('Legal demand cannot be empty.');  return false; }
+    return true;
+  };
+
+  // ── Generate ─────────────────────────────
+  const generate = async () => {
+    if (!validate()) return;
     setGenerating(true);
-    setGenerated(null);
-    setTimeout(() => {
-      setGenerated(buildNotice(form));
+    setNotice(null);
+    try {
+      const res = await fetch(`${API_URL}/legal-notice/generate`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(form),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any)?.detail ?? `Server error ${res.status}`);
+      }
+      const data = await res.json();
+      setNotice(data.notice);
+      setResponseLang(data.language ?? 'English');
+      toast.success('Legal notice drafted successfully!');
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Failed to generate. Check backend connection.');
+    } finally {
       setGenerating(false);
-      toast.success('Legal notice drafted');
-    }, 1600);
+    }
   };
 
   const reset = () => {
-    setGenerated(null);
-    setForm((f) => ({ ...f, subject: '', facts: '', demand: '', reliefAmount: '' }));
+    setNotice(null);
+    setForm((f) => ({
+      ...f,
+      case_details:      '',
+      legal_demand:      '',
+      subject:           '',
+      recipient_name:    '',
+      recipient_address: '',
+    }));
   };
 
+  // ── Copy ─────────────────────────────────
   const copy = async () => {
-    if (!generated) return;
-    await navigator.clipboard.writeText(generated);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
-    toast.success('Copied to clipboard');
+    if (!notice) return;
+    try {
+      await navigator.clipboard.writeText(notice);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+      toast.success('Copied to clipboard');
+    } catch {
+      toast.error('Clipboard access denied');
+    }
   };
 
-  const download = () => {
-    if (!generated) return;
-    const blob = new Blob([generated], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Legal_Notice_${form.recipientName.replace(/\s+/g, '_')}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Downloaded');
+  // ── PDF ──────────────────────────────────
+  const handleDownloadPDF = async () => {
+    if (!notice) return;
+    try {
+      const { downloadPDF } = await import('@/lib/exporter');
+      downloadPDF(notice, `Legal_Notice_${form.recipient_name.replace(/\s+/g, '_')}.pdf`);
+    } catch (err) {
+      console.error(err);
+      toast.error('PDF generation failed');
+    }
   };
 
+  // ── DOCX ─────────────────────────────────
+  const handleDownloadDOCX = async () => {
+    if (!notice) return;
+    try {
+      const { downloadDOCX } = await import('@/lib/exporter');
+      downloadDOCX(notice, `Legal_Notice_${form.recipient_name.replace(/\s+/g, '_')}.docx`);
+    } catch (err) {
+      console.error(err);
+      toast.error('DOCX generation failed');
+    }
+  };
+
+  // ── Supabase save ────────────────────────
+  const saveHistory = async () => {
+    if (!notice) return;
+    setSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error('Sign in to save notices.'); return; }
+      const { error } = await supabase.from('legal_notice_history').insert({
+        user_id:     user.id,
+        notice_type: form.notice_type,
+        recipient:   form.recipient_name,
+        notice,
+        language:    responseLang,
+      });
+      if (error) throw error;
+      toast.success('Notice saved to history!');
+      loadHistory();
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Failed to save history');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const loadHistory = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('legal_notice_history')
+        .select('id, notice_type, recipient, notice, language, created_at')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (data) setHistory(data as HistoryItem[]);
+    } catch { /* silent */ }
+  };
+
+  React.useEffect(() => { loadHistory(); }, []);
+
+  // ─────────────────────────────────────────
+  // Render
+  // ─────────────────────────────────────────
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+
+      {/* ── Page Header ── */}
       <Reveal>
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent text-white shadow-lg shadow-primary/30">
-            <ScrollText className="h-5 w-5" />
+        <div className="mb-8 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-rose-500 text-white shadow-lg shadow-rose-500/25">
+              <Scale className="h-5 w-5" />
+            </div>
+            <div>
+              <h1 className="font-display text-2xl font-bold tracking-tight">Legal Notice Generator</h1>
+              <p className="text-sm text-muted-foreground">
+                Draft professional legal notices in 12 Indian languages using Groq Llama 3.3.
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-display text-2xl font-bold tracking-tight">Legal Notice Generator</h1>
-            <p className="text-sm text-muted-foreground">Draft a formal legal notice before initiating litigation.</p>
-          </div>
+
+          {history.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowHistory((s) => !s)}
+              className="gap-2 rounded-xl"
+            >
+              <History className="h-4 w-4" />
+              History ({history.length})
+            </Button>
+          )}
         </div>
       </Reveal>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <Reveal>
+      {/* ── Notice Type Picker ── */}
+      <Reveal delay={0.04}>
+        <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {NOTICE_TYPES.map((t) => (
+            <button
+              key={t.value}
+              onClick={() => setForm((f) => ({ ...f, notice_type: t.value }))}
+              className={cn(
+                'flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-xs font-medium transition-all duration-200',
+                form.notice_type === t.value
+                  ? 'border-amber-500/60 bg-amber-500/10 text-amber-600 dark:text-amber-400 shadow-sm shadow-amber-500/20'
+                  : 'border-border/60 bg-background/50 text-muted-foreground hover:border-border hover:bg-accent/5',
+              )}
+            >
+              <span className="shrink-0 text-base leading-none">{t.icon}</span>
+              <span className="truncate">{t.value}</span>
+            </button>
+          ))}
+        </div>
+      </Reveal>
+
+      {/* ── History Panel ── */}
+      <AnimatePresence>
+        {showHistory && history.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-6 overflow-hidden"
+          >
+            <Card className="glass-strong border-border/60">
+              <CardHeader className="py-4">
+                <CardTitle className="flex items-center gap-2 text-sm font-bold">
+                  <History className="h-4 w-4 text-primary" />
+                  Recent Legal Notices
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="max-h-64 space-y-2 overflow-y-auto">
+                {history.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setNotice(item.notice);
+                      setResponseLang(item.language);
+                      setShowHistory(false);
+                    }}
+                    className="w-full rounded-xl border border-border/60 p-3 text-left transition-colors hover:bg-accent/5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="truncate text-xs font-semibold">{item.notice_type}</span>
+                      <span className="ml-2 shrink-0 text-[10px] text-muted-foreground">
+                        {new Date(item.created_at).toLocaleDateString('en-IN')}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">
+                      To: {item.recipient} · {item.language}
+                    </span>
+                  </button>
+                ))}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Main Grid ── */}
+      <div className="grid gap-6 lg:grid-cols-2">
+
+        {/* ────────── Form Column ────────── */}
+        <Reveal delay={0.06}>
           <Card className="glass-strong border-border/60">
             <CardHeader>
-              <CardTitle className="text-lg">Notice details</CardTitle>
-              <CardDescription>Provide the facts and the relief you seek. Required fields are marked *.</CardDescription>
+              <CardTitle className="text-lg">Notice Details</CardTitle>
+              <CardDescription>
+                Fields marked * are required. Names, addresses and amounts are never translated.
+              </CardDescription>
             </CardHeader>
+
             <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Your name *">
-                  <Input value={form.senderName} onChange={update('senderName')} placeholder="Sender name" />
-                </Field>
-                <Field label="Your phone">
-                  <Input value={form.senderPhone} onChange={update('senderPhone')} placeholder="+91…" />
-                </Field>
+
+              {/* Language */}
+              <FieldRow label="Output Language" icon={<Globe className="h-3.5 w-3.5" />}>
+                <select
+                  value={form.language}
+                  onChange={update('language')}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {LANGUAGES.map((l) => (
+                    <option key={l.code} value={l.code}>{l.label}</option>
+                  ))}
+                </select>
+              </FieldRow>
+
+              <div className="my-1 border-t border-border/40" />
+
+              {/* Sender block */}
+              <SectionLabel icon={<User className="h-3 w-3" />} text="Sender" />
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FieldRow label="Sender Name *">
+                  <Input id="ln-sender-name" value={form.sender_name} onChange={update('sender_name')} placeholder="Your full name" />
+                </FieldRow>
+                <FieldRow label="Subject">
+                  <Input id="ln-subject" value={form.subject} onChange={update('subject')} placeholder="Brief subject line" />
+                </FieldRow>
               </div>
-              <Field label="Your address">
-                <Textarea value={form.senderAddress} onChange={update('senderAddress')} placeholder="Your postal address" rows={2} />
-              </Field>
-              <Field label="Your email">
-                <Input type="email" value={form.senderEmail} onChange={update('senderEmail')} placeholder="you@example.com" />
-              </Field>
 
-              <div className="my-2 h-px bg-border/60" />
+              <FieldRow label="Sender Address" icon={<MapPin className="h-3.5 w-3.5" />}>
+                <Textarea id="ln-sender-addr" value={form.sender_address} onChange={update('sender_address')} placeholder="Your postal address" rows={2} />
+              </FieldRow>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Recipient name *">
-                  <Input value={form.recipientName} onChange={update('recipientName')} placeholder="Person / entity being notified" />
-                </Field>
-                <Field label="Notice type">
-                  <select
-                    value={form.noticeType}
-                    onChange={update('noticeType')}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    {noticeTypes.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                </Field>
+              <div className="my-1 border-t border-border/40" />
+
+              {/* Recipient block */}
+              <SectionLabel icon={<User className="h-3 w-3" />} text="Recipient" />
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FieldRow label="Recipient Name *">
+                  <Input id="ln-recipient-name" value={form.recipient_name} onChange={update('recipient_name')} placeholder="Recipient full name" />
+                </FieldRow>
+                <FieldRow label="Compliance Deadline (days)" icon={<Clock className="h-3.5 w-3.5" />}>
+                  <Input
+                    id="ln-deadline"
+                    type="number"
+                    min={1}
+                    max={180}
+                    value={form.deadline_days}
+                    onChange={updateNum('deadline_days')}
+                  />
+                </FieldRow>
               </div>
-              <Field label="Recipient address">
-                <Textarea value={form.recipientAddress} onChange={update('recipientAddress')} placeholder="Recipient's postal address" rows={2} />
-              </Field>
 
-              <Field label="Subject">
-                <Input value={form.subject} onChange={update('subject')} placeholder="Short subject line" />
-              </Field>
-              <Field label="Facts of the matter *">
+              <FieldRow label="Recipient Address" icon={<MapPin className="h-3.5 w-3.5" />}>
+                <Textarea id="ln-recipient-addr" value={form.recipient_address} onChange={update('recipient_address')} placeholder="Recipient's postal address" rows={2} />
+              </FieldRow>
+
+              <div className="my-1 border-t border-border/40" />
+
+              {/* Case Details */}
+              <FieldRow label="Case Details / Facts *" icon={<FileText className="h-3.5 w-3.5" />}>
                 <Textarea
-                  value={form.facts}
-                  onChange={update('facts')}
-                  placeholder="Describe what happened — dates, agreements, breaches, amounts owed…"
-                  rows={4}
+                  id="ln-case-details"
+                  value={form.case_details}
+                  onChange={update('case_details')}
+                  placeholder="Describe the facts in detail — dates, amounts, agreements, events, and any prior communications."
+                  rows={5}
                 />
-              </Field>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Relief amount (₹)">
-                  <Input type="number" value={form.reliefAmount} onChange={update('reliefAmount')} placeholder="0" />
-                </Field>
-                <Field label="Respond within (days)">
-                  <Input type="number" value={form.responseDays} onChange={update('responseDays')} placeholder="15" />
-                </Field>
-              </div>
-              <Field label="Specific demand">
-                <Textarea value={form.demand} onChange={update('demand')} placeholder="What you want the recipient to do" rows={2} />
-              </Field>
+              </FieldRow>
 
-              <div className="flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
-                <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <p>A 60-day notice is mandatory before suing the government under Section 80 CPC. This draft is a starting point — consult an advocate before sending.</p>
+              {/* Legal Demand */}
+              <FieldRow label="Legal Demand *" icon={<Scale className="h-3.5 w-3.5" />}>
+                <Textarea
+                  id="ln-legal-demand"
+                  value={form.legal_demand}
+                  onChange={update('legal_demand')}
+                  placeholder="State exactly what you demand — payment of ₹X, cessation of activity, delivery of goods, etc."
+                  rows={3}
+                />
+              </FieldRow>
+
+              {/* Disclaimer */}
+              <div className="flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-muted-foreground">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                <p>
+                  AI-generated draft only. Verify with a licensed advocate before sending.
+                  A 60-day notice is mandatory before suing the government (Section 80 CPC).
+                </p>
               </div>
 
+              {/* Action buttons */}
               <div className="flex gap-2">
-                <Button onClick={generate} disabled={generating} className="flex-1 gap-2">
-                  {generating ? <ThinkingPulse className="text-white" /> : <Sparkles className="h-4 w-4" />}
-                  {generating ? 'Drafting…' : 'Generate notice'}
+                <Button
+                  id="ln-generate-btn"
+                  onClick={generate}
+                  disabled={generating}
+                  className="flex-1 gap-2 rounded-xl"
+                >
+                  {generating ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Drafting notice…</>
+                  ) : (
+                    <><Sparkles className="h-4 w-4" /> Generate Legal Notice</>
+                  )}
                 </Button>
-                <Button variant="outline" onClick={reset} disabled={generating}>
+                <Button
+                  variant="outline"
+                  onClick={reset}
+                  disabled={generating}
+                  className="rounded-xl"
+                  aria-label="Reset form"
+                >
                   <RotateCcw className="h-4 w-4" />
                 </Button>
               </div>
@@ -193,96 +483,162 @@ function LegalNoticeGenerator() {
           </Card>
         </Reveal>
 
+        {/* ────────── Preview Column ────────── */}
         <Reveal delay={0.1}>
-          <Card className="glass-strong sticky top-8 h-fit border-border/60">
-            <CardHeader className="flex-row items-center justify-between space-y-0">
-              <div>
-                <CardTitle className="text-lg">Preview</CardTitle>
-                <CardDescription>Your drafted legal notice.</CardDescription>
-              </div>
-              {generated && (
-                <div className="flex gap-1.5">
-                  <Button size="sm" variant="ghost" onClick={copy} className="gap-1.5">
-                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                    {copied ? 'Copied' : 'Copy'}
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={download} className="gap-1.5">
-                    <Download className="h-3.5 w-3.5" />
-                    Download
-                  </Button>
+          <div className="sticky top-6">
+            <Card className="glass-strong h-fit border-border/60">
+              <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    Preview
+                    {notice && (
+                      <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                        {responseLang}
+                      </span>
+                    )}
+                  </CardTitle>
+                  <CardDescription>Your AI-drafted legal notice.</CardDescription>
                 </div>
-              )}
-            </CardHeader>
-            <CardContent>
-              {generating ? (
-                <div className="py-4"><ThinkingPulse /></div>
-              ) : generated ? (
-                <motion.pre
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="whitespace-pre-wrap rounded-xl bg-muted/30 p-4 font-mono text-xs leading-relaxed text-foreground/90"
-                >
-                  {generated}
-                </motion.pre>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                    <ScrollText className="h-6 w-6" />
+
+                {/* Action toolbar */}
+                {notice && (
+                  <div className="flex flex-wrap justify-end gap-1">
+                    <ActionBtn id="ln-copy-btn"  onClick={copy}              icon={copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}  label={copied ? 'Copied' : 'Copy'} />
+                    <ActionBtn id="ln-pdf-btn"   onClick={handleDownloadPDF}  icon={<Download className="h-3.5 w-3.5" />}  label="PDF"  />
+                    <ActionBtn id="ln-docx-btn"  onClick={handleDownloadDOCX} icon={<FileDown className="h-3.5 w-3.5" />}  label="DOCX" />
+                    <ActionBtn id="ln-save-btn"  onClick={saveHistory}        disabled={saving} icon={saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} label="Save" />
+                    <ActionBtn id="ln-regen-btn" onClick={generate}           disabled={generating} icon={<RotateCcw className="h-3.5 w-3.5" />} label="Regen" />
                   </div>
-                  <p className="mt-4 text-sm font-medium">Your draft will appear here</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Fill in the form and click generate.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                )}
+              </CardHeader>
+
+              <CardContent>
+                <AnimatePresence mode="wait">
+                  {generating ? (
+                    <motion.div
+                      key="loading"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="space-y-4 py-8"
+                    >
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span className="relative flex h-3 w-3">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500/50" />
+                          <span className="relative inline-flex h-3 w-3 rounded-full bg-amber-500" />
+                        </span>
+                        Drafting legal notice with Groq Llama 3.3…
+                      </div>
+                      <div className="space-y-2.5">
+                        {SKELETON_WIDTHS.map((w, i) => (
+                          <motion.div
+                            key={i}
+                            initial={{ opacity: 0, x: -8 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: i * 0.08 }}
+                            className="h-3 animate-pulse rounded-full bg-muted/60"
+                            style={{ width: `${w}%` }}
+                          />
+                        ))}
+                      </div>
+                    </motion.div>
+                  ) : notice ? (
+                    <motion.div
+                      key="result"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4 }}
+                    >
+                      <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card">
+                        {/* Accent bar */}
+                        <div className="h-1 w-full bg-gradient-to-r from-amber-500 via-rose-500 to-amber-400/50" />
+                        {/* Watermark */}
+                        <div className="pointer-events-none absolute right-4 top-4 opacity-[0.04]">
+                          <Scale className="h-24 w-24" />
+                        </div>
+                        <div className="p-4 sm:p-5">
+                          <pre className="max-h-[540px] overflow-y-auto whitespace-pre-wrap font-mono text-xs leading-relaxed text-foreground/90">
+                            {notice}
+                          </pre>
+                        </div>
+                        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-card to-transparent" />
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="empty"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="flex flex-col items-center justify-center py-16 text-center"
+                    >
+                      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500/10 to-rose-500/10">
+                        <ScrollText className="h-7 w-7 text-amber-500/60" />
+                      </div>
+                      <p className="text-sm font-semibold text-foreground/80">
+                        Your legal notice will appear here
+                      </p>
+                      <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                        Select a notice type, fill in the details, then click{' '}
+                        <span className="font-semibold text-foreground/70">"Generate Legal Notice"</span>.
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </CardContent>
+            </Card>
+          </div>
         </Reveal>
       </div>
     </div>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+// ─────────────────────────────────────────────
+// Sub-components
+// ─────────────────────────────────────────────
+
+function SectionLabel({ icon, text }: { icon: React.ReactNode; text: string }) {
+  return (
+    <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      {icon}
+      {text}
+    </p>
+  );
+}
+
+function FieldRow({
+  label,
+  icon,
+  children,
+}: {
+  label: string;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+      <Label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        {icon}
+        {label}
+      </Label>
       {children}
     </div>
   );
 }
 
-function buildNotice(f: any): string {
-  const date = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
-  return `LEGAL NOTICE
-
-To,
-${f.recipientName},
-${f.recipientAddress || '[Recipient address]'}
-
-Date: ${date}
-
-Subject: ${f.subject || `Notice regarding ${f.noticeType}`}
-
-Sir/Madam,
-
-Under instructions from and on behalf of my client, ${f.senderName}, residing at ${f.senderAddress || '[address]'}, I hereby serve upon you the following legal notice:
-
-1. That my client ${f.facts}
-
-2. That in spite of repeated requests and demands made by my client, you have failed to ${f.demand || 'resolve the matter'}.
-
-3. That my client has thereby suffered loss and hardship, and the amount due and payable by you is ₹${f.reliefAmount || '—'}.
-
-4. That in the circumstances, my client is entitled to ${f.demand || 'the relief claimed'}.
-
-I, therefore, through this notice, call upon you to comply with the aforesaid demand within ${f.responseDays || '15'} days from the receipt of this notice, failing which my client shall be constrained to initiate appropriate legal proceedings against you in the competent court of law at your own risk as to cost and consequences.
-
-A copy of this notice is retained in my office for record and further necessary action.
-
-Place: __________
-Date: ${date}
-
-Through Advocate,
-
-(${f.senderName})
-`;
+function ActionBtn({
+  id, onClick, icon, label, disabled = false,
+}: {
+  id: string;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  disabled?: boolean;
+}) {
+  return (
+    <Button id={id} size="sm" variant="ghost" onClick={onClick} disabled={disabled} className="h-8 gap-1.5 rounded-lg">
+      {icon}
+      {label}
+    </Button>
+  );
 }

@@ -35,7 +35,7 @@ COLLECTION_NAME = "nyaya_constitution"
 def get_embeddings():
     print("[embedder] Initializing HuggingFace embeddings model...")
     return HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2",
+       model_name="BAAI/bge-small-en-v1.5",
         model_kwargs={"device": "cpu"},
         encode_kwargs={
             # CRITICAL: normalize to unit vectors before storing.

@@ -2,7 +2,27 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://viyssnrvtpoccletcqgy.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpeXNzbnJ2dHBvY2NsZXRjcWd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNjA0NjIsImV4cCI6MjEwMDczNjQ2Mn0.8uZ3j5OMDiaaXrUBgON_j4wiCpREEO6v4KqeY7LUrss';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn(
+    '[Nyaya AI] Supabase env vars are missing. ' +
+    'Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local'
+  );
+}
+
+export const supabase = createClient(
+  supabaseUrl ?? '',
+  supabaseAnonKey ?? '',
+  {
+    auth: {
+      // Persist sessions in localStorage (default); set false to disable
+      persistSession: true,
+      // Auto-refresh the session token before it expires
+      autoRefreshToken: true,
+      // Detect and handle OAuth redirects automatically
+      detectSessionInUrl: true,
+    },
+  }
+);

@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
 import logging
+import traceback
+from fastapi import APIRouter, HTTPException, status
+from pydantic import BaseModel, Field, ValidationError
 from app.services.llm import get_groq_client
 
 logger = logging.getLogger(__name__)
@@ -8,14 +9,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/rti", tags=["rti"])
 
 class RtiRequest(BaseModel):
-    department: str
-    public_authority: str
-    information_required: str
-    applicant_name: str
-    address: str
-    contact: str
-    email: str
-    language: str = "en"
+    department: str = Field(..., min_length=1, description="Department name")
+    public_authority: str = Field(..., min_length=1, description="Public authority name")
+    information_required: str = Field(..., min_length=1, description="Details of information required")
+    applicant_name: str = Field(..., min_length=1, description="Full name of applicant")
+    address: str = Field(default="", description="Postal address")
+    contact: str = Field(default="", description="Contact number")
+    email: str = Field(default="", description="Email address")
+    language: str = Field(default="en", description="Target response language code")
 
 class RtiResponse(BaseModel):
     application: str
@@ -41,10 +42,28 @@ async def generate_rti(request: RtiRequest):
     """
     FastAPI endpoint to draft a formal Right to Information (RTI) application using Groq.
     """
-    logger.info(f"Generating RTI draft for {request.applicant_name} | language={request.language}")
-    
+    logger.info(
+        f"[RTI Generate] Incoming request received | applicant={request.applicant_name!r} | "
+        f"authority={request.public_authority!r} | department={request.department!r} | language={request.language!r}"
+    )
+    logger.debug(f"[RTI Generate] Validated request payload: {request.model_dump_json()}")
+
     target_lang = LANGUAGE_NAME_MAP.get(request.language.lower(), "English")
-    client = get_groq_client()
+    
+    try:
+        client = get_groq_client()
+    except RuntimeError as rerr:
+        logger.error(f"[RTI Generate] Configuration Error: {rerr}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Server Configuration Error: {str(rerr)}"
+        )
+    except Exception as cerr:
+        logger.error(f"[RTI Generate] Unexpected client initialization error: {cerr}\n{traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to initialize AI service client: {str(cerr)}"
+        )
 
     system_prompt = (
         "You are an Indian Legal Assistant specialized in drafting RTI applications.\n"
@@ -86,6 +105,9 @@ async def generate_rti(request: RtiRequest):
         "Signature: ________________"
     )
 
+    logger.debug(f"[RTI Generate] System prompt sent to Groq:\n{system_prompt}")
+    logger.debug(f"[RTI Generate] User prompt sent to Groq:\n{user_content}")
+
     try:
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
@@ -97,7 +119,24 @@ async def generate_rti(request: RtiRequest):
             max_tokens=1500
         )
         application_text = response.choices[0].message.content
+        logger.info(f"[RTI Generate] RTI application drafted successfully for applicant={request.applicant_name!r}")
+        logger.debug(f"[RTI Generate] Groq response text length: {len(application_text) if application_text else 0}")
+        
+        if not application_text:
+            logger.error("[RTI Generate] Groq returned an empty response.")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="LLM service generated an empty response."
+            )
+
         return RtiResponse(application=application_text, language=target_lang)
+
+    except HTTPException:
+        raise
     except Exception as exc:
-        logger.error(f"Failed to generate RTI: {exc}")
-        raise HTTPException(status_code=500, detail=f"LLM generation failed: {str(exc)}")
+        logger.error(f"[RTI Generate] Groq API call failed: {exc}\n{traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"RTI Generation Failed: {str(exc)}"
+        )
+

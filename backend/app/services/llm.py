@@ -11,8 +11,12 @@ logger = logging.getLogger(__name__)
 
 @functools.lru_cache(maxsize=1)
 def get_groq_client():
-    logger.info("Initializing Groq client...")
-    return Groq(api_key=os.getenv("GROQ_API_KEY"))
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        logger.error("GROQ_API_KEY environment variable is missing or empty.")
+        raise RuntimeError("GROQ_API_KEY environment variable is not configured on the backend server.")
+    logger.info("Initializing Groq client with configured API key...")
+    return Groq(api_key=api_key)
 
 
 # ── Language-aware RAG system prompts ────────────────────────────────────────
@@ -44,16 +48,18 @@ def generate_rag_system_prompt(lang_code: str) -> str:
         extra_instruction = " Answer completely in Marathi using natural and formal Marathi (i.e. explain 'Article 21' as 'कलम 21')."
     
     return (
-        f"You are Nyaya AI, an expert AI Legal Assistant specializing in the Constitution of India.\n"
+        f"You are Nyaya AI, an expert AI Legal Assistant specializing in Indian Law and the Constitution.\n"
         f"Your absolute target language for the explanation is: {lang_name}.{extra_instruction}\n\n"
         f"STRICT HALLUCINATION & TRANS-LANGUAGE RULES:\n"
         f"1. Answer/explain ONLY using information present in the provided context.\n"
-        f"2. If the answer is not found in the context, respond in {lang_name} stating you couldn't find this in the Constitution.\n"
+        f"2. If sufficient context or legal evidence is unavailable in the provided context, DO NOT fabricate legal information. Respond in {lang_name} stating strictly:\n"
+        f"   \"I couldn't find enough evidence in the available legal documents.\"\n"
         f"3. Explanations must be generated completely and fluently in {lang_name}.\n"
-        f"4. DO NOT translate citation titles, document names ('constitution_of_india.pdf'), article/section metadata numbers, page numbers, or section headings in the sources. Keep them as they are in the context.\n"
-        f"5. Under no circumstances should you fabricate legal articles, rules, or citations.\n"
+        f"4. DO NOT translate citation titles, document names, article/section metadata numbers, or page numbers. Keep them as they are.\n"
+        f"5. Under no circumstances should you fabricate legal articles, rules, section numbers, or court judgements.\n"
         f"6. Do not claim to be a lawyer or offer personalized legal advisory services."
     )
+
 
 def generate_general_system_prompt(lang_code: str) -> str:
     lang_name = _ISO_LANGUAGE_MAP.get(lang_code, "English")
@@ -86,31 +92,64 @@ def ask_llm(question: str, language: str = "en") -> str:
         raise
 
 
-def ask_llm_rag(question: str, context: str, language: str = "en") -> str:
+def ask_llm_rag(question: str, context: str, language: str = "en", history: str = "") -> str:
     """
-    RAG-grounded LLM call with dynamic language-aware system prompt.
+    RAG-grounded LLM call with dynamic language-aware system prompt and conversation history.
     """
     client = get_groq_client()
     logger.info(f"[llm] ask_llm_rag | lang={language!r} | question={question!r}")
+    
+    user_prompt = (
+        f"Context from Legal Documents:\n\n{context}\n\n"
+    )
+    if history:
+        user_prompt += f"Previous Conversation History:\n{history}\n\n"
+        
+    user_prompt += f"---\n\nQuestion: {question}"
+
     try:
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": generate_rag_system_prompt(language)},
-                {
-                    "role": "user",
-                    "content": (
-                        "Context from the Constitution of India:\n\n"
-                        f"{context}\n\n"
-                        "---\n\n"
-                        f"Question: {question}"
-                    ),
-                },
+                {"role": "user",   "content": user_prompt},
             ],
-            temperature=0.1,    # Low temp = more deterministic, less hallucination
+            temperature=0.1,
             max_tokens=1024,
         )
         return response.choices[0].message.content
     except Exception as exc:
         logger.error(f"ask_llm_rag failed: {exc}")
         raise
+
+
+def ask_llm_rag_stream(question: str, context: str, language: str = "en", history: str = ""):
+    """
+    Stream LLM response tokens one by one for Server-Sent Events (SSE).
+    """
+    client = get_groq_client()
+    logger.info(f"[llm] ask_llm_rag_stream | lang={language!r} | question={question!r}")
+    
+    user_prompt = f"Context from Legal Documents:\n\n{context}\n\n"
+    if history:
+        user_prompt += f"Previous Conversation History:\n{history}\n\n"
+    user_prompt += f"---\n\nQuestion: {question}"
+
+    try:
+        stream = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": generate_rag_system_prompt(language)},
+                {"role": "user",   "content": user_prompt},
+            ],
+            temperature=0.1,
+            max_tokens=1024,
+            stream=True,
+        )
+        for chunk in stream:
+            delta = chunk.choices[0].delta.content
+            if delta:
+                yield delta
+    except Exception as exc:
+        logger.error(f"ask_llm_rag_stream failed: {exc}")
+        yield f"\n[Error: {str(exc)}]"

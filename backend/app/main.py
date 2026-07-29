@@ -5,6 +5,7 @@ from app.api.llm import router as llm_router
 from app.api.research import router as research_router
 from app.api.rti import router as rti_router
 from app.api.legal_notice import router as legal_notice_router
+from app.api.tts import router as tts_router
 
 app = FastAPI(
     title="Nyaya AI API",
@@ -25,6 +26,7 @@ app.include_router(llm_router)
 app.include_router(research_router)
 app.include_router(rti_router)
 app.include_router(legal_notice_router)
+app.include_router(tts_router)
 
 @app.get("/")
 def root():

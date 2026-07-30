@@ -9,17 +9,30 @@ import {
 import { toast } from 'sonner';
 import { AppShell } from '@/components/nyaya/app-shell';
 import { AIResponseCard } from '@/components/nyaya/ai-response-card';
+import { StreamingResponseCard } from '@/components/nyaya/streaming-response-card';
 import { EmptyState } from '@/components/nyaya/empty-state';
-import { ThinkingPulse } from '@/components/nyaya/loading';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
   useConversations, useConversation, createConversation, deleteConversation,
 } from '@/hooks/use-conversations';
+import { useStreamingChat } from '@/hooks/use-streaming-chat';
 import { suggestedPrompts } from '@/lib/legal-engine';
+import type { Audience } from '@/lib/legal-engine';
 import { transcribeAudio } from '@/lib/speech';
 import { cn } from '@/lib/utils';
+
+const AUDIENCE_OPTIONS: Array<{ value: Audience; label: string }> = [
+  { value: 'default', label: 'Default' },
+  { value: 'student', label: 'Student' },
+  { value: 'lawyer', label: 'Lawyer' },
+  { value: 'upsc', label: 'UPSC' },
+  { value: 'child', label: 'Child' },
+];
 
 export default function ChatPage() {
   return (
@@ -34,7 +47,7 @@ function ChatLayout() {
   const { conversations, loading: convsLoading, reload } = useConversations();
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState('');
-  const { messages, loading: msgsLoading, sendMessage } = useConversation(activeId);
+  const { messages, loading: msgsLoading, sendMessage, addUserMessage, saveStreamedAnswer } = useConversation(activeId);
 
   const filtered = React.useMemo(
     () => conversations.filter((c) => c.title.toLowerCase().includes(search.toLowerCase())),
@@ -121,6 +134,8 @@ function ChatLayout() {
           loading={msgsLoading}
           hasActive={!!activeId}
           onSend={sendMessage}
+          onAddUserMessage={addUserMessage}
+          onSaveStreamedAnswer={saveStreamedAnswer}
           onNew={startNew}
         />
       </div>
@@ -166,15 +181,18 @@ function ConversationItem({
 }
 
 function ChatPanel({
-  messages, loading, hasActive, onSend, onNew,
+  messages, loading, hasActive, onSend, onAddUserMessage, onSaveStreamedAnswer, onNew,
 }: {
-  messages: Array<{ id: string; role: 'user' | 'assistant'; content: string; citations?: any[]; pending?: boolean }>;
+  messages: Array<{ id: string; role: 'user' | 'assistant'; content: string; citations?: any[]; sourceCitations?: any[]; detected_language?: string; pending?: boolean }>;
   loading: boolean;
   hasActive: boolean;
-  onSend: (text: string) => void;
+  onSend: (text: string, audience?: Audience) => void;
+  onAddUserMessage: (text: string) => string;
+  onSaveStreamedAnswer: (userText: string, assistantContent: string, citations: any[]) => Promise<void>;
   onNew: () => void;
 }) {
   const [input, setInput] = React.useState('');
+  const [audience, setAudience] = React.useState<Audience>('default');
   const [listening, setListening] = React.useState(false);
   const [transcribing, setTranscribing] = React.useState(false);
   const [files, setFiles] = React.useState<string[]>([]);
@@ -183,22 +201,70 @@ function ChatPanel({
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const mediaStreamRef = React.useRef<MediaStream | null>(null);
 
+  React.useEffect(() => {
+    const saved = window.localStorage.getItem('nyaya-audience') as Audience | null;
+    if (saved && AUDIENCE_OPTIONS.some((option) => option.value === saved)) {
+      setAudience(saved);
+    }
+  }, []);
+
+  const updateAudience = (value: Audience) => {
+    setAudience(value);
+    window.localStorage.setItem('nyaya-audience', value);
+  };
+
+  // ── Phase 8: streaming state ────────────────────────────────────────────────
+  // Tracks the live in-progress streaming response separately from persisted messages.
+  const [streamingQuestion, setStreamingQuestion] = React.useState('');
+  const { state: streamState, start: startStream, reset: resetStream } = useStreamingChat({
+    question: streamingQuestion,
+    audience,
+  });
+  // True while a streaming response is in progress (before done and persistence)
+  const isStreamingActive = !!(streamingQuestion && (!streamState.isDone || streamState.isStreaming));
+
   React.useEffect(() => () => {
     if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
     mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
   }, []);
 
+  // Scroll to bottom when messages update OR streaming text grows
   React.useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, streamState.streamedText]);
+
+  // Once streaming completes: save to Supabase, then reset the stream
+  React.useEffect(() => {
+    if (streamState.isDone && streamingQuestion && streamState.streamedText) {
+      // Persist the streamed answer without calling LLM again
+      onSaveStreamedAnswer(
+        streamingQuestion,
+        streamState.streamedText,
+        streamState.sourceCitations,
+      ).catch((e: unknown) => console.error('Failed to persist streamed answer:', e));
+
+      const t = setTimeout(() => {
+        resetStream();
+        setStreamingQuestion('');
+      }, 400);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streamState.isDone]);
 
   const submit = () => {
     if (!hasActive) {
       onNew();
       return;
     }
-    if (!input.trim()) return;
-    onSend(input);
+    const trimmed = input.trim();
+    if (!trimmed) return;
+    // 1. Add user bubble immediately (optimistic UI)
+    onAddUserMessage(trimmed);
+    // 2. Start streaming response
+    resetStream();
+    setStreamingQuestion(trimmed);
+    startStream(trimmed);
     setInput('');
     setFiles([]);
   };
@@ -281,9 +347,23 @@ function ChatPanel({
             <p className="text-xs text-muted-foreground">Cited answers · Indian law</p>
           </div>
         </div>
-        <Button size="sm" variant="outline" onClick={onNew} className="md:hidden">
-          <Plus className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Select value={audience} onValueChange={(value) => updateAudience(value as Audience)}>
+            <SelectTrigger className="h-9 w-[124px] rounded-xl">
+              <SelectValue aria-label="Audience" />
+            </SelectTrigger>
+            <SelectContent>
+              {AUDIENCE_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button size="sm" variant="outline" onClick={onNew} className="md:hidden">
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
@@ -307,7 +387,7 @@ function ChatPanel({
                   {suggestedPrompts.slice(0, 4).map((p) => (
                     <button
                       key={p}
-                      onClick={() => (hasActive ? onSend(p) : (onNew(), setTimeout(() => onSend(p), 800)))}
+                      onClick={() => (hasActive ? onSend(p, audience) : (onNew(), setTimeout(() => onSend(p, audience), 800)))}
                       className="glass rounded-xl px-3.5 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary"
                     >
                       {p}
@@ -331,18 +411,33 @@ function ChatPanel({
                         {m.content}
                       </div>
                     </motion.div>
-                  ) : m.pending ? (
-                    <motion.div key={m.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-strong rounded-3xl p-5">
-                      <ThinkingPulse />
-                    </motion.div>
-                  ) : (
+                  ) : m.pending ? null /* pending suppressed — streaming card replaces it */ : (
                     <AIResponseCard
                       key={m.id}
-                      response={{ id: m.id, content: m.content, citations: m.citations }}
+                      response={{
+                        id: m.id,
+                        content: m.content,
+                        citations: m.citations,
+                        sourceCitations: m.sourceCitations,
+                        detected_language: m.detected_language,
+                      }}
                     />
                   )
                 )}
               </AnimatePresence>
+
+              {/* ── Phase 8: Live streaming card — replaces ThinkingPulse ── */}
+              {isStreamingActive && (
+                <StreamingResponseCard
+                  streamedText={streamState.streamedText}
+                  statusMessage={streamState.statusMessage}
+                  isStreaming={streamState.isStreaming}
+                  isDone={streamState.isDone}
+                  sourceCitations={streamState.sourceCitations}
+                  error={streamState.error}
+                  detectedLanguage="en"
+                />
+              )}
             </div>
           )}
         </div>

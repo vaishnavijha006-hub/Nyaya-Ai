@@ -4,14 +4,20 @@ Legal Notice Generator — FastAPI router.
 POST /legal-notice/generate
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 import logging
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
 from app.services.llm import get_groq_client
+from app.utils.security import sanitize_input, check_prompt_injection
 
 logger = logging.getLogger(__name__)
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/legal-notice", tags=["legal-notice"])
+
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -70,20 +76,29 @@ class LegalNoticeResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 @router.post("/generate", response_model=LegalNoticeResponse)
-async def generate_legal_notice(request: LegalNoticeRequest):
+@limiter.limit("10/minute")
+async def generate_legal_notice(request: Request, body: LegalNoticeRequest):
     """
     Draft a professional Legal Notice using Groq Llama 3.3.
     Supports multilingual output; names / addresses / dates are preserved in original form.
     """
+    body.case_details = sanitize_input(body.case_details)
+    body.legal_demand = sanitize_input(body.legal_demand)
+    body.subject = sanitize_input(body.subject)
+
+    check_prompt_injection(body.case_details)
+    check_prompt_injection(body.legal_demand)
+
     logger.info(
         "Generating legal notice | type=%s sender=%s language=%s",
-        request.notice_type,
-        request.sender_name,
-        request.language,
+        body.notice_type,
+        body.sender_name,
+        body.language,
     )
 
-    target_lang = LANGUAGE_NAME_MAP.get(request.language.lower(), "English")
+    target_lang = LANGUAGE_NAME_MAP.get(body.language.lower(), "English")
     client = get_groq_client()
+
 
     # ------------------------------------------------------------------ #
     # System prompt                                                        #
@@ -128,15 +143,15 @@ async def generate_legal_notice(request: LegalNoticeRequest):
     # User message                                                         #
     # ------------------------------------------------------------------ #
     user_content = (
-        f"Notice Type: {request.notice_type}\n"
-        f"Sender Name: {request.sender_name}\n"
-        f"Sender Address: {request.sender_address or '[Not provided]'}\n"
-        f"Recipient Name: {request.recipient_name}\n"
-        f"Recipient Address: {request.recipient_address or '[Not provided]'}\n"
-        f"Subject: {request.subject or f'{request.notice_type} — Legal Notice'}\n\n"
-        f"Case Details / Facts:\n{request.case_details}\n\n"
-        f"Legal Demand:\n{request.legal_demand}\n\n"
-        f"Compliance Deadline: {request.deadline_days} days from the date of receipt of this notice.\n\n"
+        f"Notice Type: {body.notice_type}\n"
+        f"Sender Name: {body.sender_name}\n"
+        f"Sender Address: {body.sender_address or '[Not provided]'}\n"
+        f"Recipient Name: {body.recipient_name}\n"
+        f"Recipient Address: {body.recipient_address or '[Not provided]'}\n"
+        f"Subject: {body.subject or f'{body.notice_type} — Legal Notice'}\n\n"
+        f"Case Details / Facts:\n{body.case_details}\n\n"
+        f"Legal Demand:\n{body.legal_demand}\n\n"
+        f"Compliance Deadline: {body.deadline_days} days from the date of receipt of this notice.\n\n"
         "Draft the complete legal notice following the format specified in the system prompt. "
         "Be precise, formal, and do not add information beyond what is supplied above."
     )

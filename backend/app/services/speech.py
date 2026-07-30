@@ -5,10 +5,9 @@ from __future__ import annotations
 from functools import lru_cache
 import logging
 from pathlib import Path
-import subprocess
+import wave
 from typing import Any
 from uuid import uuid4
-
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +39,24 @@ def load_whisper() -> Any:
         raise SpeechProcessingError("Whisper model could not be loaded.") from error
 
 
+@lru_cache(maxsize=1)
+def load_piper_voice() -> Any:
+    """Load and cache the Piper ONNX neural voice model once per application process."""
+    if not PIPER_MODEL_PATH.is_file():
+        logger.error("Piper ONNX model missing at '%s'.", PIPER_MODEL_PATH)
+        raise SpeechProcessingError(f"Piper ONNX model is missing at '{PIPER_MODEL_PATH}'.")
+
+    try:
+        from piper import PiperVoice
+        logger.info("Loading Piper ONNX neural voice model from '%s'...", PIPER_MODEL_PATH.name)
+        voice = PiperVoice.load(str(PIPER_MODEL_PATH))
+        logger.info("Piper ONNX neural voice model loaded successfully.")
+        return voice
+    except Exception as error:
+        logger.exception("Failed to load Piper ONNX voice model.")
+        raise SpeechProcessingError("Piper ONNX neural voice model could not be loaded.") from error
+
+
 def speech_to_text(audio_file: Path) -> str:
     """Transcribe an audio file with the cached Whisper model."""
     if not audio_file.is_file():
@@ -60,46 +77,40 @@ def speech_to_text(audio_file: Path) -> str:
 
 
 def text_to_speech(text: str) -> Path:
-    """Generate a unique WAV file from text with the Hindi Piper voice."""
-    if not text.strip():
-        raise SpeechProcessingError("Text cannot be empty.")
-    if not PIPER_MODEL_PATH.is_file():
-        raise SpeechProcessingError(
-            f"Piper model is missing at '{PIPER_MODEL_PATH}'."
-        )
+    """Generate a unique WAV file from text using cached Piper ONNX neural voice synthesis."""
+    if not text or not text.strip():
+        raise SpeechProcessingError("Text field cannot be empty.")
 
+    clean_text = text.strip()
     GENERATED_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
     output_path = GENERATED_AUDIO_DIR / f"{uuid4()}.wav"
 
+    logger.info("Synthesizing speech via Piper ONNX for text length=%d", len(clean_text))
+
     try:
-        result = subprocess.run(
-            [
-                "piper",
-                "--model",
-                str(PIPER_MODEL_PATH),
-                "--output_file",
-                str(output_path),
-            ],
-            input=text.encode("utf-8"),
-            capture_output=True,
-            check=False,
-            timeout=60,
-        )
-    except FileNotFoundError as error:
-        raise SpeechProcessingError(
-            "Piper CLI was not found. Install Piper and add it to PATH."
-        ) from error
-    except subprocess.TimeoutExpired as error:
-        logger.warning("Piper timed out while generating '%s'.", output_path.name)
-        raise SpeechProcessingError("Piper timed out while generating audio.") from error
+        voice = load_piper_voice()
+        import numpy as np
 
-    if result.returncode != 0:
-        stderr = result.stderr.decode("utf-8", errors="replace").strip()
-        logger.error("Piper exited with code %s: %s", result.returncode, stderr)
-        raise SpeechProcessingError(
-            f"Piper failed to generate audio: {stderr or 'unknown error'}"
-        )
-    if not output_path.is_file():
-        raise SpeechProcessingError("Piper completed without creating a WAV file.")
+        with wave.open(str(output_path), "wb") as wav_file:
+            wav_file.setnchannels(1)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(voice.config.sample_rate)
 
-    return output_path
+            for chunk in voice.synthesize(clean_text):
+                audio_bytes = (chunk.audio_float_array * 32767).astype(np.int16).tobytes()
+                wav_file.writeframes(audio_bytes)
+
+        if not output_path.is_file() or output_path.stat().st_size == 0:
+            raise SpeechProcessingError("Piper completed synthesis but output file is empty.")
+
+
+
+        logger.info("Piper TTS synthesis complete: '%s' (%d bytes)", output_path.name, output_path.stat().st_size)
+        return output_path
+
+    except SpeechProcessingError:
+        raise
+    except Exception as error:
+        logger.exception("Piper neural TTS synthesis failed.")
+        raise SpeechProcessingError(f"Piper neural TTS synthesis failed: {error}") from error
+

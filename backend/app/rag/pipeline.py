@@ -1,32 +1,46 @@
 """
 pipeline.py — Main RAG pipeline for Nyaya AI.
 
-Simplified pipeline flow (Phase 4):
-─────────────────────────────────
-  User Query
+Pipeline flow (Phase 9 — Conversation Memory + Contextual Retrieval):
+─────────────────────────────────────────────────────────────────────
+  User Query + History
       │
       ▼
   ① Language Detection          (detect_language)
       │
       ▼
-  ② Vector Search               (retrieve)
-      │    ↓ local Constitution chunks
+  ② ConversationMemory           (memory_from_history)
+      │    ↓ entity extraction + reference resolution
       ▼
-  ③ LLM Generation              (ask_llm_rag)
-      │
+  ③ Retrieval Query Expansion    (memory.resolve_reference)
+      │    ↓ expanded retrieval query (NOT sent to LLM)
       ▼
-  ④ Citation-based Legal Answer
+  ④ Vector + BM25 Search         (retrieve + conversation_context)
+      │    ↓ local chunks
+      ▼
+  ⑤ Citation Extraction          (build_citations)
+      │    ↓ CitationItem list
+      ▼
+  ⑥ LLM Generation               (ask_llm_rag)
+      │    receives original question + history
+      ▼
+  ⑦ Structured Response
+      answer + citations[] returned separately
 
 Key design decisions:
-- The pipeline processes local vector store retrieved document chunks.
-- Language detection is a lightweight regex/keyword heuristic.
-- The `detected_language` field is returned in the API response.
+- Retrieval logic, embeddings, parser: UNCHANGED.
+- Only the retrieval query is expanded — the LLM receives the raw question.
+- ConversationMemory caps at 6 turns / 2000 characters automatically.
+- Explicit entity in current query always overrides history context.
 """
 
 import logging
 import re
+from typing import Optional
 from app.rag.retriever import retrieve
-from app.services.llm import ask_llm_rag
+from app.services import llm as llm_service
+from app.rag.citations import build_citations, build_readable_citation_block
+from app.rag.memory import ConversationMemory, memory_from_history
 
 logger = logging.getLogger(__name__)
 
@@ -121,9 +135,14 @@ LANGUAGE_NAME_MAP = {
 
 # ── Main pipeline ─────────────────────────────────────────────────────────────
 
-def ask_rag(question: str) -> dict:
+def ask_rag(question: str, history: Optional[list] = None, audience: str = "default") -> dict:
     """
-    Full RAG pipeline: detect → retrieve → generate → return.
+    Full RAG pipeline: detect → memory → expanded retrieval → generate → return.
+
+    Args:
+        question: The user's current question (used unchanged for LLM).
+        history:  Optional list of {'role': str, 'content': str} dicts from
+                  the conversation so far. Used ONLY for retrieval expansion.
     """
 
     # ── Step 1: Language Detection ────────────────────────────────────────────
@@ -131,45 +150,78 @@ def ask_rag(question: str) -> dict:
     response_lang_name = LANGUAGE_NAME_MAP.get(lang, 'English')
     logger.info(f"[pipeline] Detected language: {lang!r} ({response_lang_name}) | Query: {question!r}")
 
-    # ── Step 2: Vector Search ─────────────────────────────────────────────────
-    docs = retrieve(question)
+    # ── Step 2: Conversation Memory ───────────────────────────────────────────
+    # Build memory from history, then resolve vague references.
+    # The expanded query is used ONLY for retrieval — LLM gets the raw question.
+    mem = memory_from_history(history or [])
+    expanded_query = mem.resolve_reference(question)
+    conversation_context = mem.get_context_string() if len(mem) > 0 else None
+
+    if expanded_query != question:
+        logger.info(f"[pipeline] Reference resolved: {question!r} → {expanded_query!r}")
+
+    # ── Step 3: Vector + BM25 Search (context-augmented) ─────────────────────
+    docs = retrieve(expanded_query, conversation_context=conversation_context)
     logger.info(f"[pipeline] Retrieved {len(docs)} vector chunks.")
 
-    # ── Step 3: Build context string ──────────────────────────────────────────
+    # ── Step 3: Build structured citations (Phase 6) ──────────────────────────
+    # Citations are extracted here, AFTER retrieval, BEFORE LLM call.
+    # They are never injected as raw JSON into the prompt.
+    citations = build_citations(docs)
+    readable_citation_block = build_readable_citation_block(citations)
+    logger.info(f"[pipeline] Built {len(citations)} citation(s).")
+
+    # ── Step 4: Build context string ──────────────────────────────────────────
     context_parts = []
 
-    # Append local vector chunks with article provenance labels
+    # Prepend human-readable citation summary block so LLM knows the sources
+    if readable_citation_block:
+        context_parts.append(readable_citation_block)
+
+    # Append local vector chunks with provenance labels
     for doc in docs:
         page      = doc.metadata.get("page", "?")
-        art       = doc.metadata.get("primary_article", "")
-        art_label = f"Article {art}" if art else f"Page {page}"
+        act_name  = doc.metadata.get("act_name") or doc.metadata.get("title") or "Legal Document"
+        art       = doc.metadata.get("primary_article") or doc.metadata.get("article") or ""
+        sec       = doc.metadata.get("section") or ""
+        if art:
+            ref_label = f"Article {art}"
+        elif sec:
+            ref_label = f"Section {sec}"
+        else:
+            ref_label = f"Page {page}"
         context_parts.append(
-            f"=== Constitution of India | {art_label} | Page {page} ===\n\n"
+            f"=== {act_name} | {ref_label} | Page {page} ===\n\n"
             + doc.page_content
         )
 
     context = "\n\n---\n\n".join(context_parts)
     logger.debug(f"[pipeline] Total context length: {len(context)} chars")
 
-    # ── Step 4: LLM Generation ────────────────────────────────────────────────
-    answer = ask_llm_rag(question=question, context=context, language=lang)
+    # ── Step 5: LLM Generation ────────────────────────────────────────────────
+    answer = llm_service.ask_llm_rag(question=question, context=context, language=lang, audience=audience)
     logger.info("[pipeline] LLM generation complete.")
 
-    # ── Step 5: Build serializable source list ────────────────────────────────
+    # ── Step 6: Build serializable source list (backward-compatible) ──────────
     vector_sources = []
     for doc in docs:
-        metadata_score = doc.metadata.get("score")
+        # Confidence: use fusion_score / confidence from retriever if present
+        metadata_score = (
+            doc.metadata.get("confidence")
+            or doc.metadata.get("fusion_score")
+            or doc.metadata.get("score")
+        )
         if metadata_score is None:
             idx = len(vector_sources)
             metadata_score = max(0.5, 0.95 - (idx * 0.12))
-        
+
         vector_sources.append({
             "page":            doc.metadata.get("page"),
             "source":          doc.metadata.get("source", "Constitution of India"),
             "primary_article": doc.metadata.get("primary_article", ""),
             "article_refs":    doc.metadata.get("article_refs", ""),
             "content_preview": doc.page_content[:350],
-            "relevance_score": round(metadata_score, 2),
+            "relevance_score": round(float(metadata_score), 2),
             "origin":          "vector",
         })
 
@@ -177,5 +229,104 @@ def ask_rag(question: str) -> dict:
         "answer":            answer,
         "detected_language": lang,
         "sources":           vector_sources,
-        "response_language": response_lang_name
+        "response_language": response_lang_name,
+        # Phase 6: structured citations returned separately from sources
+        "citations":         citations,
+    }
+
+
+# ── Phase 10: Session-Scoped Pipeline ────────────────────────────────────────
+
+def ask_rag_session(question: str, session_id: str, history: Optional[list] = None, audience: str = "default") -> dict:
+    """
+    Phase 10 RAG pipeline for uploaded-PDF sessions.
+
+    Routes retrieval to the user's temporary session collection instead of the
+    permanent Constitution collection. Everything else (memory, citations,
+    LLM generation) is identical to ask_rag().
+
+    Args:
+        question:   The user's current question (unchanged for LLM).
+        session_id: UUID from POST /pdf/upload — identifies the session collection.
+        history:    Optional conversation history for memory-based query expansion.
+
+    Returns:
+        Same dict schema as ask_rag() — fully backward-compatible with the API.
+    """
+    from app.rag.session_retriever import retrieve_session  # late import to avoid circular
+
+    # ── Step 1: Language Detection ────────────────────────────────────────────
+    lang = detect_language(question)
+    response_lang_name = LANGUAGE_NAME_MAP.get(lang, 'English')
+    logger.info(f"[session_pipeline] lang={lang!r} session={session_id} query={question!r}")
+
+    # ── Step 2: Conversation Memory ───────────────────────────────────────────
+    mem = memory_from_history(history or [])
+    expanded_query = mem.resolve_reference(question)
+    conversation_context = mem.get_context_string() if len(mem) > 0 else None
+
+    if expanded_query != question:
+        logger.info(f"[session_pipeline] Reference resolved: {question!r} → {expanded_query!r}")
+
+    # ── Step 3: Session-Scoped Retrieval ──────────────────────────────────────
+    docs = retrieve_session(session_id, expanded_query, conversation_context=conversation_context)
+    logger.info(f"[session_pipeline] Retrieved {len(docs)} chunks from session {session_id}")
+
+    # ── Step 4: Citations (Phase 6 — same logic, different source) ────────────
+    citations = build_citations(docs)
+    readable_citation_block = build_readable_citation_block(citations)
+    logger.info(f"[session_pipeline] Built {len(citations)} citation(s).")
+
+    # ── Step 5: Build LLM context ─────────────────────────────────────────────
+    context_parts = []
+    if readable_citation_block:
+        context_parts.append(readable_citation_block)
+
+    for doc in docs:
+        page     = doc.metadata.get("page", "?")
+        act_name = doc.metadata.get("act_name") or doc.metadata.get("title") or "Uploaded Document"
+        art      = doc.metadata.get("primary_article") or doc.metadata.get("article") or ""
+        sec      = doc.metadata.get("section") or ""
+        if art:
+            ref_label = f"Article {art}"
+        elif sec:
+            ref_label = f"Section / Clause {sec}"
+        else:
+            ref_label = f"Page {page}"
+        context_parts.append(
+            f"=== {act_name} | {ref_label} | Page {page} ===\n\n"
+            + doc.page_content
+        )
+
+    context = "\n\n---\n\n".join(context_parts)
+
+    # ── Step 6: LLM Generation (same LLM, raw question unchanged) ────────────
+    answer = llm_service.ask_llm_rag(question=question, context=context, language=lang, audience=audience)
+    logger.info(f"[session_pipeline] LLM generation complete for session {session_id}")
+
+    # ── Step 7: Serializable sources ─────────────────────────────────────────
+    vector_sources = []
+    for idx, doc in enumerate(docs):
+        score = (
+            doc.metadata.get("confidence")
+            or doc.metadata.get("fusion_score")
+            or max(0.5, 0.95 - idx * 0.10)
+        )
+        vector_sources.append({
+            "page":            doc.metadata.get("page"),
+            "source":          doc.metadata.get("source", "Uploaded Document"),
+            "primary_article": doc.metadata.get("primary_article", ""),
+            "article_refs":    doc.metadata.get("article_refs", ""),
+            "content_preview": doc.page_content[:350],
+            "relevance_score": round(float(score), 2),
+            "origin":          "session",
+        })
+
+    return {
+        "answer":            answer,
+        "detected_language": lang,
+        "sources":           vector_sources,
+        "response_language": response_lang_name,
+        "citations":         citations,
+        "session_id":        session_id,
     }

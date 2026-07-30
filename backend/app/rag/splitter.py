@@ -1,37 +1,48 @@
 """
 splitter.py — Legal-document-aware text splitter for Indian Statutes & Judicial Documents.
+Task 2 & 3: Uses robust parser.py to detect legal headings, populate standardized metadata fields,
+and generate unique chunk IDs.
 """
 
 import re
+import uuid
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from app.rag.parser import parse_legal_references, is_legal_heading_start
 
+# Splitter regex recognizing legal headings while avoiding ordinary lists: 1., (1), (a), (i)
+_SPLIT_PATTERN = re.compile(
+    r'\n\n(?=(?:ARTICLE|Article|Art\.|Arts\.|SECTION|Section|Sec\.|Secs\.|PART|Part|CHAPTER|Chapter|SCHEDULE|Schedule)\s+)'
+)
 
 def split_documents(documents: list, default_act_name: str = "Constitution of India") -> list:
     """
-    Split page-level Documents into retrieval-ready chunks with rich legal metadata.
+    Split page-level Documents into retrieval-ready chunks with rich, standardized legal metadata.
     """
     article_docs = []
     
-    # ── STAGE 1: Force split at ARTICLE or SECTION boundaries ─────────────────
+    # ── STAGE 1: Split at genuine legal heading boundaries ─────────────────────
     for doc in documents:
-        # Split on double newline followed by ARTICLE or SECTION keyword
-        parts = re.split(r'\n\n(?=(?:ARTICLE|SECTION)\s+\d+)', doc.page_content)
+        parts = _SPLIT_PATTERN.split(doc.page_content)
         for part in parts:
             part = part.strip()
             if part:
                 meta = doc.metadata.copy()
                 meta.setdefault("act_name", default_act_name)
                 meta.setdefault("source", doc.metadata.get("source", default_act_name))
+                meta.setdefault("title", doc.metadata.get("title", default_act_name))
                 
-                # Check for explicit ARTICLE tag
-                art_match = re.search(r'ARTICLE\s+(\d+[A-Z]?)', part)
-                if art_match:
-                    meta["primary_article"] = art_match.group(1)
-                    
-                sec_match = re.search(r'SECTION\s+(\d+[A-Z]?)', part)
-                if sec_match:
-                    meta["section"] = sec_match.group(1)
+                # Parse structured references from part
+                refs = parse_legal_references(part)
+                if refs["article"]:
+                    meta["article"] = refs["article"]
+                    meta["primary_article"] = refs["article"]
+                if refs["section"]:
+                    meta["section"] = refs["section"]
+                if refs["chapter"]:
+                    meta["chapter"] = refs["chapter"]
+                if refs["part"]:
+                    meta["part"] = refs["part"]
                     
                 article_docs.append(Document(page_content=part, metadata=meta))
 
@@ -45,18 +56,23 @@ def split_documents(documents: list, default_act_name: str = "Constitution of In
     
     chunks = splitter.split_documents(article_docs)
 
-    # ── STAGE 3: Extract and label primary_article / section ─────────────────
-    article_re = re.compile(r'ARTICLE\s+(\d+[A-Z]?)', re.IGNORECASE)
-    section_re = re.compile(r'SECTION\s+(\d+[A-Z]?)', re.IGNORECASE)
-    
-    for chunk in chunks:
-        found_articles = article_re.findall(chunk.page_content)
-        if found_articles and "primary_article" not in chunk.metadata:
-            chunk.metadata["primary_article"] = found_articles[0]
-            chunk.metadata["article_refs"] = ", ".join(dict.fromkeys(found_articles))
-            
-        found_sections = section_re.findall(chunk.page_content)
-        if found_sections and "section" not in chunk.metadata:
-            chunk.metadata["section"] = found_sections[0]
+    # ── STAGE 3: Metadata Enrichment & Standardized Key Enforcement ───────────
+    for idx, chunk in enumerate(chunks):
+        refs = parse_legal_references(chunk.page_content)
+        
+        # Ensure all 12 standardized metadata fields exist (storing None if missing)
+        chunk.metadata["source"] = chunk.metadata.get("source") or default_act_name
+        chunk.metadata["title"] = chunk.metadata.get("title") or default_act_name
+        chunk.metadata["act_name"] = chunk.metadata.get("act_name") or default_act_name
+        chunk.metadata["page"] = chunk.metadata.get("page")
+        chunk.metadata["article"] = chunk.metadata.get("article") or refs["article"] or chunk.metadata.get("primary_article")
+        chunk.metadata["primary_article"] = chunk.metadata["article"]
+        chunk.metadata["section"] = chunk.metadata.get("section") or refs["section"]
+        chunk.metadata["chapter"] = chunk.metadata.get("chapter") or refs["chapter"]
+        chunk.metadata["part"] = chunk.metadata.get("part") or refs["part"]
+        chunk.metadata["judgment_name"] = chunk.metadata.get("judgment_name")
+        chunk.metadata["citation"] = chunk.metadata.get("citation")
+        chunk.metadata["year"] = chunk.metadata.get("year")
+        chunk.metadata["chunk_id"] = chunk.metadata.get("chunk_id") or f"chunk_{chunk.metadata.get('page', 0)}_{idx}_{uuid.uuid4().hex[:8]}"
 
     return chunks

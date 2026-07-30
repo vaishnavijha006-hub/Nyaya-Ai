@@ -2,15 +2,19 @@
 
 import * as React from 'react';
 import { supabase } from '@/lib/supabase-client';
-import { getLegalAnswer } from '@/lib/legal-engine';
+import { getLegalAnswer, type Audience } from '@/lib/legal-engine';
 import type { Citation } from '@/components/nyaya/citation-card';
+import type { SourceCitation } from '@/components/nyaya/source-card';
 
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   citations?: Citation[];
+  /** Phase 6: structured source citations from backend citations[] */
+  sourceCitations?: SourceCitation[];
   pending?: boolean;
+  detected_language?: string;
 }
 
 export interface Conversation {
@@ -75,7 +79,7 @@ export function useConversation(conversationId: string | null) {
   }, [load]);
 
   const sendMessage = React.useCallback(
-    async (text: string) => {
+    async (text: string, audience: Audience = 'default') => {
       if (!conversationId || !text.trim()) return;
 
       const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: text };
@@ -95,7 +99,7 @@ export function useConversation(conversationId: string | null) {
       setMessages((m) => [...m, { id: pendingId, role: 'assistant', content: '', pending: true }]);
 
       // Call the real FastAPI backend (async)
-      const answer = await getLegalAnswer(text);
+      const answer = await getLegalAnswer(text, audience);
 
       // Save RAG response as a Research Session inside iNSIGHTS Assisted workspace
       try {
@@ -132,12 +136,13 @@ export function useConversation(conversationId: string | null) {
       setMessages((m) =>
         m.map((msg) =>
           msg.id === pendingId
-            ? { 
-                id: pendingId, 
-                role: 'assistant', 
-                content: answer.content, 
+            ? {
+                id: pendingId,
+                role: 'assistant',
+                content: answer.content,
                 citations: answer.citations,
-                detected_language: answer.detected_language 
+                sourceCitations: answer.sourceCitations,
+                detected_language: answer.detected_language,
               }
             : msg
         )
@@ -175,7 +180,88 @@ export function useConversation(conversationId: string | null) {
     [conversationId]
   );
 
-  return { messages, loading, sendMessage, reload: load };
+  /**
+   * saveStreamedAnswer — Phase 8 companion to useStreamingChat.
+   * Called after streaming isDone to persist the streamed response to Supabase.
+   * Does NOT call getLegalAnswer — the answer is already in streamedText.
+   */
+  const saveStreamedAnswer = React.useCallback(
+    async (userText: string, assistantContent: string, citations: SourceCitation[]) => {
+      if (!conversationId) return;
+
+      // Persist user message
+      await supabase.from('messages').insert({
+        conversation_id: conversationId,
+        role: 'user',
+        content: userText,
+      });
+
+      // Persist assistant message with citations
+      await supabase.from('messages').insert({
+        conversation_id: conversationId,
+        role: 'assistant',
+        content: assistantContent,
+        citations: citations,
+      });
+
+      // Update conversation timestamp
+      await supabase
+        .from('conversations')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', conversationId);
+
+      // Auto-update conversation title if still default
+      try {
+        const { data: conv } = await supabase
+          .from('conversations')
+          .select('title')
+          .eq('id', conversationId)
+          .single();
+        if (conv && (conv.title === 'New Conversation' || conv.title === 'New chat')) {
+          await supabase
+            .from('conversations')
+            .update({ title: userText.slice(0, 30) + (userText.length > 30 ? '...' : '') })
+            .eq('id', conversationId);
+        }
+      } catch { /* title update is non-critical */ }
+
+      // Research session logging (best-effort)
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from('research_sessions').insert({
+            user_id: user.id,
+            query: userText,
+            answer: assistantContent,
+            detected_language: 'english',
+            sources: citations,
+            articles_retrieved: [],
+          });
+          await supabase.from('analytics_events').insert({
+            user_id: user.id,
+            event_type: 'query',
+            metadata: { query: userText, detected_language: 'english', streamed: true },
+          });
+        }
+      } catch (e) {
+        console.error('Failed to log research session:', e);
+      }
+    },
+    [conversationId]
+  );
+
+  /**
+   * addUserMessage — Phase 8 optimistic UI.
+   * Adds the user message bubble instantly before streaming begins.
+   */
+  const addUserMessage = React.useCallback((text: string): string => {
+    const id = crypto.randomUUID();
+    const userMsg: ChatMessage = { id, role: 'user', content: text };
+    setMessages((m) => [...m, userMsg]);
+    return id;
+  }, []);
+
+  return { messages, loading, sendMessage, saveStreamedAnswer, addUserMessage, reload: load };
 }
 
 export async function createConversation(title: string): Promise<string | null> {

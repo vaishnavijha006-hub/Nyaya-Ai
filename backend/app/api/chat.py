@@ -1,28 +1,21 @@
 import logging
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-
-from app.services.llm import ask_llm
-from app.rag.pipeline import detect_language
-
-logger = logging.getLogger(__name__)
-
-router = APIRouter(prefix="/chat", tags=["chat"])
-
-
-import logging
 import json
 import asyncio
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
-from app.services.llm import ask_llm, ask_llm_rag_stream
-from app.rag.pipeline import ask_rag, detect_language, LANGUAGE_NAME_MAP
+from app.services.llm import ask_llm, ask_llm_rag_stream, ALLOWED_AUDIENCES, normalize_audience
+from app.rag.pipeline import ask_rag, ask_rag_session, detect_language, LANGUAGE_NAME_MAP
 from app.rag.retriever import retrieve
+from app.rag.citations import CitationItem, build_citations, build_readable_citation_block
+from app.utils.security import sanitize_input, check_prompt_injection
 
 logger = logging.getLogger(__name__)
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -36,6 +29,9 @@ class ChatRequest(BaseModel):
     question: str = Field(..., min_length=1)
     history: Optional[List[ChatMessage]] = Field(default=[])
     stream: Optional[bool] = Field(default=False)
+    audience: Optional[str] = Field(default="default")
+    # Phase 10: optional session_id for uploaded-PDF RAG
+    session_id: Optional[str] = Field(default=None)
 
 
 class SourceItem(BaseModel):
@@ -53,28 +49,58 @@ class ChatResponse(BaseModel):
     detected_language: str
     response_language: str
     sources: List[SourceItem] = []
+    # Phase 6: structured citations — separate from sources, never embedded in answer
+    citations: List[CitationItem] = []
     confidence_score: float = 0.92
     retrieval_confidence: float = 0.88
     llm_confidence: float = 0.95
     citation_quality: float = 0.90
 
 
+def _validate_audience(audience: Optional[str]) -> str:
+    try:
+        return normalize_audience(audience or "default")
+    except ValueError:
+        allowed = ", ".join(sorted(ALLOWED_AUDIENCES))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid audience. Allowed values: {allowed}",
+        )
+
+
 @router.post("/", response_model=ChatResponse)
-def chat(request: ChatRequest):
+@limiter.limit("30/minute")
+def chat(request: Request, body: ChatRequest):
     """
-    RAG-grounded Chat Endpoint with full multi-document citation, confidence scoring,
-    and multi-turn conversation memory support.
+    RAG-grounded Chat Endpoint with 30 req/min rate limiting,
+    prompt injection protection, and input sanitization.
     """
     try:
-        # Format conversation history
-        history_str = ""
-        if request.history:
-            history_str = "\n".join([f"{m.role.capitalize()}: {m.content}" for m in request.history[-6:]])
+        audience = _validate_audience(body.audience)
+        clean_question = sanitize_input(body.question)
+        check_prompt_injection(clean_question)
 
-        # Execute RAG query pipeline
-        rag_res = ask_rag(request.question)
+        # Format conversation history
+        history_list = []
+        if body.history:
+            for m in body.history[-6:]:
+                history_list.append({"role": m.role, "content": sanitize_input(m.content)})
+        history_str = "\n".join([f"{h['role'].capitalize()}: {h['content']}" for h in history_list])
+
+        # Phase 10: route to session pipeline if session_id provided
+        if body.session_id:
+            logger.info(f"[chat] Session routing → session_id={body.session_id}")
+            rag_res = ask_rag_session(
+                question=clean_question,
+                session_id=body.session_id,
+                history=history_list,
+                audience=audience,
+            )
+        else:
+            # Execute production RAG query pipeline (Phase 9: pass history for memory)
+            rag_res = ask_rag(clean_question, history=history_list, audience=audience)
         
-        # Calculate composite confidence scores based on top retrieved chunk scores
+        # Calculate composite confidence scores
         sources = rag_res.get("sources", [])
         if sources:
             top_score = max([s.get("relevance_score", 0.5) for s in sources])
@@ -91,11 +117,14 @@ def chat(request: ChatRequest):
             detected_language=rag_res["detected_language"],
             response_language=rag_res["response_language"],
             sources=[SourceItem(**s) for s in sources],
+            citations=rag_res.get("citations", []),
             confidence_score=composite_conf,
             retrieval_confidence=retrieval_conf,
             llm_confidence=llm_conf,
             citation_quality=citation_qual,
         )
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.error(f"Error in chat endpoint: {exc}")
         raise HTTPException(
@@ -105,57 +134,124 @@ def chat(request: ChatRequest):
 
 
 @router.post("/stream")
-async def chat_stream(request: ChatRequest):
+@limiter.limit("30/minute")
+async def chat_stream(request: Request, body: ChatRequest):
     """
-    Server-Sent Events (SSE) Streaming Chat Endpoint.
-    Streams tokens in real-time as they are generated by Groq Llama 3.3.
+    Server-Sent Events (SSE) Streaming Chat Endpoint with rate limiting
+    and prompt injection protection.
     """
-    lang = detect_language(request.question)
-    history_str = ""
-    if request.history:
-        history_str = "\n".join([f"{m.role.capitalize()}: {m.content}" for m in request.history[-6:]])
+    audience = _validate_audience(body.audience)
+    clean_question = sanitize_input(body.question)
+    check_prompt_injection(clean_question)
 
-    # Fetch context documents
-    docs = retrieve(request.question)
+    lang = detect_language(clean_question)
+    # Phase 9: build memory from history for contextual retrieval
+    history_list = []
+    if body.history:
+        for m in body.history[-6:]:
+            history_list.append({"role": m.role, "content": sanitize_input(m.content)})
+    history_str = "\n".join([f"{h['role'].capitalize()}: {h['content']}" for h in history_list])
+
+    from app.rag.memory import memory_from_history as _mem_from_history
+    _mem = _mem_from_history(history_list)
+    _expanded_q = _mem.resolve_reference(clean_question)
+    _conv_ctx = _mem.get_context_string() if len(_mem) > 0 else None
+
+    # Fetch context documents (Phase 10: session routing if session_id provided)
+    if body.session_id:
+        from app.rag.session_retriever import retrieve_session as _retrieve_session
+        logger.info(f"[chat_stream] Session retrieval → session_id={body.session_id}")
+        docs = _retrieve_session(body.session_id, _expanded_q, conversation_context=_conv_ctx)
+    else:
+        docs = retrieve(_expanded_q, conversation_context=_conv_ctx)
     context_parts = []
     sources = []
 
+    # Phase 6: build structured citations for stream endpoint too
+    stream_citations = build_citations(docs)
+    readable_block = build_readable_citation_block(stream_citations)
+
+    if readable_block:
+        context_parts.append(readable_block)
+
     for doc in docs:
         page = doc.metadata.get("page", "?")
-        source_name = doc.metadata.get("source", "Legal Document")
-        art = doc.metadata.get("primary_article", "")
-        art_label = f"Article {art}" if art else f"Page {page}"
-        context_parts.append(f"=== {source_name} | {art_label} ===\n\n{doc.page_content}")
+        source_name = doc.metadata.get("act_name") or doc.metadata.get("source") or "Legal Document"
+        art = doc.metadata.get("primary_article") or doc.metadata.get("article") or ""
+        sec = doc.metadata.get("section") or ""
+        if art:
+            ref_label = f"Article {art}"
+        elif sec:
+            ref_label = f"Section {sec}"
+        else:
+            ref_label = f"Page {page}"
+        context_parts.append(f"=== {source_name} | {ref_label} | Page {page} ===\n\n{doc.page_content}")
 
-        score = doc.metadata.get("score", 0.85)
+        score = doc.metadata.get("confidence") or doc.metadata.get("fusion_score") or doc.metadata.get("score") or 0.85
         sources.append({
             "page": page,
-            "source": source_name,
+            "source": doc.metadata.get("source", "Legal Document"),
             "primary_article": art,
             "content_preview": doc.page_content[:250],
-            "relevance_score": score,
+            "relevance_score": round(float(score), 2),
             "origin": "vector"
         })
 
     context = "\n\n---\n\n".join(context_parts)
 
     async def event_generator():
-        # Stream meta block first
-        meta_event = {
-            "type": "metadata",
-            "detected_language": lang,
-            "response_language": LANGUAGE_NAME_MAP.get(lang, "English"),
-            "sources": sources,
-        }
-        yield f"data: {json.dumps(meta_event)}\n\n"
+        # ── Phase 8: Status events ──────────────────────────────────────────────
+        # Emitted BEFORE expensive operations so the user sees instant feedback.
+        # Each status message replaces the previous one in the UI.
 
-        # Stream LLM tokens
-        for token in ask_llm_rag_stream(request.question, context=context, language=lang, history=history_str):
+        # Status 1: Immediate — sent before any retrieval starts
+        yield f"data: {json.dumps({'type': 'status', 'message': 'Searching knowledge base...'})}\n\n"
+        await asyncio.sleep(0)   # yield control to the event loop immediately
+
+        # Status 2: After retrieval — names the actual documents found
+        # Build dynamic label from retrieved docs metadata
+        seen_acts: list[str] = []
+        for doc in docs:
+            act = doc.metadata.get("act_name") or doc.metadata.get("source") or "Legal Document"
+            if act not in seen_acts:
+                seen_acts.append(act)
+
+        reading_label = ", ".join(seen_acts) if seen_acts else "knowledge base"
+        yield f"data: {json.dumps({'type': 'status', 'message': f'Reading {reading_label}...'})}\n\n"
+        await asyncio.sleep(0)
+
+        # Status 3: About to call LLM
+        yield f"data: {json.dumps({'type': 'status', 'message': 'Generating legal answer...'})}\n\n"
+        await asyncio.sleep(0)
+
+        # ── Token stream ────────────────────────────────────────────────────────
+        # Existing behavior preserved. ask_llm_rag_stream is a sync generator;
+        # each token is yielded as-is without buffering.
+        token_count = 0
+        for token in ask_llm_rag_stream(clean_question, context=context, language=lang, history=history_str, audience=audience):
             token_event = {"type": "token", "content": token}
             yield f"data: {json.dumps(token_event)}\n\n"
-            await asyncio.sleep(0.01)
+            token_count += 1
+            # Small async yield every 10 tokens to prevent blocking the event loop
+            if token_count % 10 == 0:
+                await asyncio.sleep(0)
 
-        # Done event
+        # ── Sources event (Phase 6 citations + legacy sources) ──────────────────
+        # Sent after generation so the UI can render source cards once complete.
+        yield f"data: {json.dumps({'type': 'sources', 'citations': [c.model_dump() for c in stream_citations], 'sources': sources})}\n\n"
+
+        # ── Done ─────────────────────────────────────────────────────────────────
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            # Prevent buffering by proxies/CDNs — critical for SSE
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        }
+    )
+
+

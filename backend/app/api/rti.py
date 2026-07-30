@@ -37,18 +37,35 @@ LANGUAGE_NAME_MAP = {
     'hinglish': 'Hinglish'
 }
 
+from fastapi import APIRouter, HTTPException, Request, status
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from app.utils.security import sanitize_input, check_prompt_injection
+
+limiter = Limiter(key_func=get_remote_address)
+
 @router.post("/generate", response_model=RtiResponse)
-async def generate_rti(request: RtiRequest):
+@limiter.limit("10/minute")
+async def generate_rti(request: Request, body: RtiRequest):
     """
     FastAPI endpoint to draft a formal Right to Information (RTI) application using Groq.
+    Enforces 10 req/min rate limit and prompt injection protection.
     """
-    logger.info(
-        f"[RTI Generate] Incoming request received | applicant={request.applicant_name!r} | "
-        f"authority={request.public_authority!r} | department={request.department!r} | language={request.language!r}"
-    )
-    logger.debug(f"[RTI Generate] Validated request payload: {request.model_dump_json()}")
+    # Sanitize and check prompt injection
+    body.applicant_name = sanitize_input(body.applicant_name)
+    body.public_authority = sanitize_input(body.public_authority)
+    body.information_required = sanitize_input(body.information_required)
+    
+    check_prompt_injection(body.information_required)
+    check_prompt_injection(body.public_authority)
 
-    target_lang = LANGUAGE_NAME_MAP.get(request.language.lower(), "English")
+    logger.info(
+        f"[RTI Generate] Incoming request received | applicant={body.applicant_name!r} | "
+        f"authority={body.public_authority!r} | department={body.department!r} | language={body.language!r}"
+    )
+
+    target_lang = LANGUAGE_NAME_MAP.get(body.language.lower(), "English")
+
     
     try:
         client = get_groq_client()

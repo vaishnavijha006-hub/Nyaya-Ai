@@ -1,172 +1,274 @@
 """
-pdf_upload.py — User PDF Upload & Personal Vector Document Store Router.
+pdf_upload.py — Phase 10: Session-Based PDF Upload & Temporary RAG.
 
 Endpoints:
-- POST /pdf/upload: Upload user PDF, chunk, embed, index into ChromaDB
-- GET /pdf/list: List indexed custom user PDFs
-- DELETE /pdf/{doc_id}: Delete custom uploaded document from vector DB
+    POST /pdf/upload   — Upload PDF, create session collection, return session_id
+    GET  /pdf/sessions — List active sessions (for debugging / UI)
+    DELETE /pdf/session/{session_id} — Manually expire a session
+
+Architecture:
+    PDF bytes → pdfplumber validation → PyPDFLoader extraction → split_documents
+    → Chroma.from_documents(collection=session_<uuid>, dir=session-vector-db/<uuid>)
+    → SessionMeta registered in session_store
+    → session_id returned to client
+
+The permanent Constitution collection is NEVER modified.
 """
 
-import os
+import io
+import logging
 import shutil
 import uuid
-import logging
-from typing import List, Optional
 from pathlib import Path
+from typing import Optional
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, status, Query
-from pydantic import BaseModel
-from langchain_community.document_loaders import PyPDFLoader
+import pdfplumber
+from fastapi import APIRouter, UploadFile, File, HTTPException, Request, status
+from fastapi.responses import JSONResponse
 from langchain_chroma import Chroma
+from langchain_core.documents import Document
+from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.rag.embedder import get_embeddings
 from app.rag.splitter import split_documents
+from app.rag.session_store import (
+    SESSION_DB_ROOT,
+    register_session,
+    get_session,
+    delete_session,
+    list_active_sessions,
+)
+from app.utils.security import validate_file_upload
 
 logger = logging.getLogger(__name__)
-
+limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/pdf", tags=["pdf-upload"])
 
-UPLOAD_DIR = Path("user_uploads")
-UPLOAD_DIR.mkdir(exist_ok=True)
+# ── Limits ────────────────────────────────────────────────────────────────────
+MAX_FILE_BYTES = 20 * 1024 * 1024   # 20 MB
+MAX_PAGES = 500
 
-USER_VECTOR_DB_PATH = "user-vector-db"
+# Temp directory for spooled uploads (deleted immediately after indexing)
+_TMP_DIR = Path("tmp_uploads")
+_TMP_DIR.mkdir(exist_ok=True)
 
+
+# ── Response models ───────────────────────────────────────────────────────────
 
 class UploadResponse(BaseModel):
-    doc_id: str
+    session_id: str
     filename: str
-    total_pages: int
-    total_chunks: int
+    pages: int
+    chunks: int
+    expires_in: str
     message: str
 
 
-class DocumentMetadata(BaseModel):
-    doc_id: str
+class SessionInfo(BaseModel):
+    session_id: str
     filename: str
-    total_chunks: int
+    pages: int
+    chunks: int
+    expires_in_seconds: int
 
 
-def _get_user_db() -> Chroma:
-    return Chroma(
-        persist_directory=USER_VECTOR_DB_PATH,
-        embedding_function=get_embeddings(),
-        collection_name="user_pdf_documents",
-    )
+# ── Validation helpers ────────────────────────────────────────────────────────
 
-
-@router.post("/upload", response_model=UploadResponse)
-async def upload_pdf(file: UploadFile = File(...)):
+def _validate_pdf_bytes(contents: bytes, filename: str) -> None:
     """
-    Upload a user legal PDF document, split it, embed it with BAAI/bge-small-en-v1.5,
-    and persist it to the user vector database for question answering.
+    Validate PDF bytes using pdfplumber:
+        1. Confirm it is a valid PDF (not corrupted).
+        2. Reject encrypted PDFs (pdfplumber raises PDFPasswordIncorrect).
+        3. Enforce MAX_PAGES limit.
+    Raises HTTPException on failure.
     """
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid file type. Only PDF documents are allowed."
-        )
-
-    doc_id = str(uuid.uuid4())
-    file_path = UPLOAD_DIR / f"{doc_id}_{file.filename}"
-
     try:
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        
-        logger.info(f"Saved uploaded PDF to {file_path}")
-
-        # Load PDF using PyPDFLoader
-        loader = PyPDFLoader(str(file_path))
-        docs = loader.load()
-
-        if not docs:
+        with pdfplumber.open(io.BytesIO(contents)) as pdf:
+            n_pages = len(pdf.pages)
+    except Exception as e:
+        err = str(e).lower()
+        if "password" in err or "encrypt" in err:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Uploaded PDF appears to be empty or unreadable."
+                detail="Encrypted PDFs are not supported. Please provide an unlocked PDF."
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid or unreadable PDF: {str(e)}"
+        )
+
+    if n_pages > MAX_PAGES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"PDF too large: {n_pages} pages (maximum {MAX_PAGES} pages allowed)."
+        )
+
+
+# ── Upload endpoint ───────────────────────────────────────────────────────────
+
+@router.post("/upload", response_model=UploadResponse)
+@limiter.limit("5/minute")
+async def upload_pdf(request: Request, file: UploadFile = File(...)):
+    """
+    Upload a legal PDF and create a temporary 30-minute session for RAG queries.
+
+    Workflow:
+        1. Validate file size, type, and content (pdfplumber)
+        2. Extract pages with PyPDFLoader
+        3. Chunk + embed into a session-scoped Chroma collection
+        4. Register session in session_store
+        5. Return session_id — use in /chat requests as session_id field
+
+    The permanent Constitution collection is never modified.
+    Rate limit: 5 uploads / minute per IP.
+    """
+    # ── Size + extension check ─────────────────────────────────────────────────
+    contents = await file.read()
+    validate_file_upload(
+        file_filename=file.filename or "upload.pdf",
+        file_size=len(contents),
+        content_type=file.content_type or "",
+    )
+    if len(contents) > MAX_FILE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File too large ({len(contents) // 1024 // 1024} MB). Maximum is 20 MB."
+        )
+    if not (file.filename or "").lower().endswith(".pdf"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PDF files are accepted."
+        )
+
+    # ── PDF validation (pdfplumber) ────────────────────────────────────────────
+    _validate_pdf_bytes(contents, file.filename or "upload.pdf")
+
+    # ── Spill to temp file (PyPDFLoader requires a path) ──────────────────────
+    tmp_id = str(uuid.uuid4())
+    tmp_path = _TMP_DIR / f"{tmp_id}.pdf"
+    try:
+        tmp_path.write_bytes(contents)
+
+        # ── Extract pages ──────────────────────────────────────────────────────
+        from langchain_community.document_loaders import PyPDFLoader  # noqa: lazy import
+        loader = PyPDFLoader(str(tmp_path))
+        raw_docs = loader.load()
+
+        if not raw_docs:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="PDF appears to be empty or contains no extractable text."
             )
 
-        # Inject user document metadata
-        for idx, doc in enumerate(docs):
-            doc.metadata["doc_id"] = doc_id
+        # ── Enrich metadata ────────────────────────────────────────────────────
+        safe_name = Path(file.filename or "document.pdf").stem.replace("_", " ").replace("-", " ").title()
+        for idx, doc in enumerate(raw_docs):
             doc.metadata["source"] = file.filename
-            doc.metadata["act_name"] = file.filename.replace(".pdf", "").replace("_", " ").title()
-            doc.metadata["page"] = idx + 1
+            doc.metadata["act_name"] = safe_name
+            doc.metadata["title"] = safe_name
+            doc.metadata["document_type"] = "Uploaded PDF"
+            doc.metadata["page"] = doc.metadata.get("page", idx + 1)
 
-        # Chunk document
-        chunks = split_documents(docs, default_act_name=doc.metadata["act_name"])
+        # ── Chunk ──────────────────────────────────────────────────────────────
+        chunks = split_documents(raw_docs, default_act_name=safe_name)
+        n_pages = len(raw_docs)
+        n_chunks = len(chunks)
+        logger.info(f"[pdf_upload] '{file.filename}': {n_pages}p → {n_chunks} chunks")
 
-        # Index into user ChromaDB collection
-        user_db = _get_user_db()
-        user_db.add_documents(chunks)
+        # ── Register session + create Chroma collection ────────────────────────
+        # Session ID is generated BEFORE indexing so we can use it as collection name
+        session_meta = register_session(
+            filename=file.filename or "document.pdf",
+            pages=n_pages,
+            chunks=n_chunks,
+        )
+        db_path = session_meta.db_path
+        db_path.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"Indexed {len(chunks)} chunks for document {doc_id} ({file.filename})")
+        # Add session_id to every chunk's metadata for provenance
+        for chunk in chunks:
+            chunk.metadata["session_id"] = session_meta.session_id
+
+        # Create isolated Chroma collection (never touches nyaya_constitution)
+        Chroma.from_documents(
+            documents=chunks,
+            embedding=get_embeddings(),
+            persist_directory=str(db_path),
+            collection_name=session_meta.collection_name,
+        )
+        logger.info(f"[pdf_upload] Session {session_meta.session_id} indexed at {db_path}")
 
         return UploadResponse(
-            doc_id=doc_id,
-            filename=file.filename,
-            total_pages=len(docs),
-            total_chunks=len(chunks),
-            message="PDF uploaded and indexed successfully into legal vector store."
+            session_id=session_meta.session_id,
+            filename=file.filename or "document.pdf",
+            pages=n_pages,
+            chunks=n_chunks,
+            expires_in="30 minutes",
+            message=f"PDF indexed successfully. Use session_id '{session_meta.session_id}' in /chat requests.",
         )
 
     except HTTPException:
         raise
     except Exception as exc:
-        logger.error(f"Failed to process PDF upload: {exc}")
-        if file_path.exists():
-            file_path.unlink()
+        logger.error(f"[pdf_upload] Processing failed: {exc}", exc_info=True)
+        # Clean up partial session DB if created
+        if 'session_meta' in dir() and session_meta.db_path.exists():  # type: ignore
+            shutil.rmtree(session_meta.db_path, ignore_errors=True)  # type: ignore
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"PDF indexing failed: {str(exc)}"
+            detail=f"PDF processing failed: {str(exc)}"
         )
+    finally:
+        # Always remove temp file
+        tmp_path.unlink(missing_ok=True)
 
 
-@router.get("/list", response_model=List[DocumentMetadata])
-async def list_documents():
-    """
-    List all uploaded user PDF documents currently stored in the vector database.
-    """
-    try:
-        user_db = _get_user_db()
-        data = user_db.get()
-        metadatas = data.get("metadatas", [])
-        
-        doc_summary = {}
-        for meta in metadatas:
-            did = meta.get("doc_id")
-            fname = meta.get("source", "Uploaded Document")
-            if did:
-                if did not in doc_summary:
-                    doc_summary[did] = {"doc_id": did, "filename": fname, "total_chunks": 0}
-                doc_summary[did]["total_chunks"] += 1
+# ── Session management endpoints ──────────────────────────────────────────────
 
-        return list(doc_summary.values())
-    except Exception as exc:
-        logger.error(f"Failed to list documents: {exc}")
+@router.get("/sessions", response_model=list[SessionInfo])
+async def list_sessions():
+    """List all active (non-expired) upload sessions. For debugging and UI status."""
+    sessions = list_active_sessions()
+    return [
+        SessionInfo(
+            session_id=m.session_id,
+            filename=m.filename,
+            pages=m.pages,
+            chunks=m.chunks,
+            expires_in_seconds=m.expires_in_seconds,
+        )
+        for m in sessions
+    ]
+
+
+@router.delete("/session/{session_id}")
+async def expire_session(session_id: str):
+    """Manually expire and delete a session before the 30-minute TTL."""
+    found = delete_session(session_id)
+    if not found:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve uploaded documents: {str(exc)}"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Session '{session_id}' not found or already expired."
         )
+    return {"status": "deleted", "session_id": session_id}
 
 
-@router.delete("/{doc_id}")
-async def delete_document(doc_id: str):
-    """
-    Delete an uploaded PDF document and clear its chunks from the vector database.
-    """
-    try:
-        user_db = _get_user_db()
-        user_db.delete(where={"doc_id": doc_id})
-        
-        # Remove original file if it exists
-        for p in UPLOAD_DIR.glob(f"{doc_id}_*"):
-            p.unlink()
-
-        logger.info(f"Deleted document {doc_id} from vector store and storage.")
-        return {"status": "success", "message": f"Document {doc_id} deleted successfully."}
-    except Exception as exc:
-        logger.error(f"Failed to delete document {doc_id}: {exc}")
+@router.get("/session/{session_id}/status")
+async def session_status(session_id: str):
+    """Check if a session is still active and how long it has left."""
+    meta = get_session(session_id)
+    if meta is None:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete document: {str(exc)}"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Session '{session_id}' not found or expired."
         )
+    return {
+        "session_id": meta.session_id,
+        "filename": meta.filename,
+        "pages": meta.pages,
+        "chunks": meta.chunks,
+        "expires_in_seconds": meta.expires_in_seconds,
+        "active": True,
+    }

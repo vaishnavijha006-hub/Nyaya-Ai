@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Copy, Check, ThumbsUp, ThumbsDown, Sparkles, Volume2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CitationList, type Citation } from '@/components/nyaya/citation-card';
+import { SourceCardList, type SourceCitation } from '@/components/nyaya/source-card';
 import { TypingDots } from '@/components/nyaya/loading';
 import { cn } from '@/lib/utils';
 import { synthesizeSpeech } from '@/lib/speech';
@@ -13,6 +14,8 @@ export interface AIResponse {
   id: string;
   content: string;
   citations?: Citation[];
+  /** Phase 6: structured source citations — rendered as SourceCards */
+  sourceCitations?: SourceCitation[];
   pending?: boolean;
   detected_language?: string;
 }
@@ -123,7 +126,13 @@ export function AIResponseCard({ response }: { response: AIResponse }) {
             </p>
           )}
 
-          {!response.pending && response.citations && response.citations.length > 0 && (
+          {/* Phase 6: SourceCardList — renders when backend citations[] available */}
+          {!response.pending && response.sourceCitations && response.sourceCitations.length > 0 && (
+            <SourceCardList citations={response.sourceCitations} />
+          )}
+
+          {/* Legacy CitationList — fallback when only sources[] available */}
+          {!response.pending && (!response.sourceCitations || response.sourceCitations.length === 0) && response.citations && response.citations.length > 0 && (
             <CitationList citations={response.citations} />
           )}
 

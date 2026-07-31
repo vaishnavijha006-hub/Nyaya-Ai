@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageSquare, FileText, ScrollText, Settings, Menu, X, Plus, LogOut,
-  FolderOpen, BarChart3,
+  FolderOpen, BarChart3, Mic,
 } from 'lucide-react';
 import { Logo } from '@/components/nyaya/logo';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ const nav = [
   { href: '/analytics', label: 'Project Analytics', icon: BarChart3 },
   { href: '/rti', label: 'RTI Generator', icon: FileText },
   { href: '/legal-notice', label: 'Legal Notice', icon: ScrollText },
+  { href: '/voice', label: 'Voice Features', icon: Mic },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 

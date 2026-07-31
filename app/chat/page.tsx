@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, MessageSquare, Trash2, Send, Mic, Paperclip, Sparkles, Search, X,
+  Loader2, Square,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/nyaya/app-shell';
@@ -462,6 +463,43 @@ function ChatPanel({
         </div>
       </div>
 
+      {/* Voice status banner — appears when recording or transcribing */}
+      {(listening || transcribing) && (
+        <div
+          className={cn(
+            'flex items-center justify-between border-t px-4 py-2 text-sm font-medium sm:px-6',
+            listening
+              ? 'border-rose-500/30 bg-rose-500/10 text-rose-500'
+              : 'border-primary/30 bg-primary/10 text-primary'
+          )}
+        >
+          <span className="flex items-center gap-2">
+            {listening ? (
+              <>
+                <span className="relative flex h-3 w-3">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-500 opacity-75" />
+                  <span className="relative inline-flex h-3 w-3 rounded-full bg-rose-500" />
+                </span>
+                Recording… click the mic to stop
+              </>
+            ) : (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Transcribing with Whisper…
+              </>
+            )}
+          </span>
+          {listening && (
+            <button
+              onClick={() => mediaRecorderRef.current?.stop()}
+              className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-2.5 py-1 text-xs font-semibold text-rose-500 hover:bg-rose-500/20 transition-colors"
+            >
+              Stop
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Composer */}
       <div className="border-t border-border/60 bg-background/60 p-4 backdrop-blur-sm sm:px-6">
         <div className="mx-auto w-full max-w-3xl">
@@ -493,18 +531,37 @@ function ChatPanel({
             >
               <Paperclip className="h-5 w-5" />
             </button>
-            <button
-              onClick={toggleVoice}
-              disabled={transcribing}
-              className={cn(
-                'flex h-10 w-10 items-center justify-center rounded-xl transition-colors',
-                listening ? 'bg-destructive/10 text-destructive' : 'text-muted-foreground hover:bg-accent/10 hover:text-foreground',
-                transcribing && 'cursor-not-allowed opacity-50'
+
+            {/* Mic button — rich states: idle / recording / transcribing */}
+            <div className="relative">
+              {/* Pulsing ring when recording */}
+              {listening && (
+                <span className="absolute -inset-1.5 animate-ping rounded-full bg-rose-500/30" />
               )}
-              aria-label={listening ? 'Stop voice recording' : 'Record voice input'}
-            >
-              <Mic className={cn('h-5 w-5', (listening || transcribing) && 'animate-pulse')} />
-            </button>
+              <button
+                onClick={toggleVoice}
+                disabled={transcribing}
+                title={listening ? 'Stop recording' : transcribing ? 'Transcribing…' : 'Record voice input (Speech-to-Text)'}
+                className={cn(
+                  'relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200',
+                  listening
+                    ? 'bg-rose-500 text-white shadow-md shadow-rose-500/40'
+                    : transcribing
+                    ? 'cursor-not-allowed bg-primary/20 text-primary'
+                    : 'text-muted-foreground hover:bg-accent/10 hover:text-foreground'
+                )}
+                aria-label={listening ? 'Stop voice recording' : transcribing ? 'Transcribing…' : 'Record voice input'}
+              >
+                {transcribing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : listening ? (
+                  <Square className="h-4 w-4 fill-current" />
+                ) : (
+                  <Mic className="h-5 w-5" />
+                )}
+              </button>
+            </div>
+
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -515,7 +572,7 @@ function ChatPanel({
                 }
               }}
               rows={1}
-              placeholder="Ask about your legal rights, draft a document…"
+              placeholder={transcribing ? 'Transcribing your voice…' : 'Ask about your legal rights, draft a document…'}
               className="max-h-32 flex-1 resize-none bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-muted-foreground"
             />
             <Button

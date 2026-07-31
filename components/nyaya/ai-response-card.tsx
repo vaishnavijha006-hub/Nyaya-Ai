@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { motion } from 'framer-motion';
-import { Copy, Check, ThumbsUp, ThumbsDown, Sparkles, Volume2 } from 'lucide-react';
+import { Copy, Check, ThumbsUp, ThumbsDown, Sparkles, Volume2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CitationList, type Citation } from '@/components/nyaya/citation-card';
 import { SourceCardList, type SourceCitation } from '@/components/nyaya/source-card';
@@ -59,16 +59,19 @@ export function AIResponseCard({ response }: { response: AIResponse }) {
     }
   };
 
+  const [loadingAudio, setLoadingAudio] = React.useState(false);
+
   const speak = async (): Promise<void> => {
     if (audioRef.current) {
       audioRef.current.pause();
       URL.revokeObjectURL(audioRef.current.src);
       audioRef.current = null;
       setSpeaking(false);
+      setLoadingAudio(false);
       return;
     }
 
-    setSpeaking(true);
+    setLoadingAudio(true);
     let audioUrl: string | null = null;
     try {
       const createdAudioUrl = URL.createObjectURL(await synthesizeSpeech(response.content));
@@ -80,10 +83,13 @@ export function AIResponseCard({ response }: { response: AIResponse }) {
         audioRef.current = null;
         setSpeaking(false);
       };
+      setLoadingAudio(false);
+      setSpeaking(true);
       await audio.play();
     } catch (error) {
       if (audioUrl) URL.revokeObjectURL(audioUrl);
       setSpeaking(false);
+      setLoadingAudio(false);
       audioRef.current = null;
       toast.error(error instanceof Error ? error.message : 'Could not play the audio response.');
     }
@@ -152,14 +158,19 @@ export function AIResponseCard({ response }: { response: AIResponse }) {
               </button>
               <button
                 onClick={speak}
+                disabled={loadingAudio}
                 aria-label={speaking ? 'Stop audio response' : 'Play audio response'}
                 className={cn(
                   'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground',
-                  speaking && 'text-primary'
+                  (speaking || loadingAudio) && 'text-primary'
                 )}
               >
-                <Volume2 className="h-3.5 w-3.5" />
-                {speaking ? 'Stop' : 'Listen'}
+                {loadingAudio ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Volume2 className="h-3.5 w-3.5" />
+                )}
+                {loadingAudio ? 'Loading...' : speaking ? 'Stop' : 'Listen'}
               </button>
               <button
                 onClick={() => setFeedback('up')}

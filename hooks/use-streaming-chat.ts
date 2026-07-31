@@ -93,8 +93,10 @@ export function useStreamingChat({ question, audience = 'default', language = 'a
   }, []);
 
   const start = React.useCallback(
-    async (overrideQuestion?: string) => {
+    async (overrideQuestion?: string, overrideAudience?: Audience, overrideLanguage?: string) => {
       const q = overrideQuestion ?? question;
+      const aud = overrideAudience ?? audience;
+      const lang = overrideLanguage ?? language;
       if (!q.trim()) return;
 
       // Cancel any in-flight request
@@ -109,7 +111,7 @@ export function useStreamingChat({ question, audience = 'default', language = 'a
         const response = await fetch(`${API_URL}/chat/stream`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: q, audience, language }),
+          body: JSON.stringify({ question: q, audience: aud, language: lang }),
           signal: controller.signal,
         });
 

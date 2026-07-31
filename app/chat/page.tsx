@@ -288,8 +288,8 @@ function ChatPanel({
     onAddUserMessage(trimmed);
     resetStream();
     setStreamingQuestion(trimmed);
-    // Do NOT await — fire and forget so React can re-render with streaming updates
-    startStream(trimmed);
+    // Explicitly pass trimmed text, audience, and language so current UI values are sent immediately
+    startStream(trimmed, audience, language);
     setInput('');
     setFiles([]);
   };
@@ -433,7 +433,7 @@ function ChatPanel({
                         onAddUserMessage(p);
                         resetStream();
                         setStreamingQuestion(p);
-                        startStream(p);
+                        startStream(p, audience, language);
                       }}
                       className="glass rounded-xl px-3.5 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary"
                     >

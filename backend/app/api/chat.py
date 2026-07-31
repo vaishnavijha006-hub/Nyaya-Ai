@@ -87,6 +87,11 @@ async def chat(request: Request, body: ChatRequest):
                 history_list.append({"role": m.role, "content": sanitize_input(m.content)})
         history_str = "\n".join([f"{h['role'].capitalize()}: {h['content']}" for h in history_list])
 
+        if body.language and body.language != "auto" and body.language in LANGUAGE_NAME_MAP:
+            target_lang = body.language
+        else:
+            target_lang = detect_language(clean_question)
+
         # Phase 10: route to session pipeline if session_id provided
         if body.session_id:
             logger.info(f"[chat] Session routing → session_id={body.session_id}")
@@ -96,10 +101,11 @@ async def chat(request: Request, body: ChatRequest):
                 session_id=body.session_id,
                 history=history_list,
                 audience=audience,
+                language=target_lang,
             )
         else:
             # Execute production RAG query pipeline
-            rag_res = await run_in_threadpool(ask_rag, clean_question, history=history_list, audience=audience)
+            rag_res = await run_in_threadpool(ask_rag, clean_question, history=history_list, audience=audience, language=target_lang)
         
         # Calculate composite confidence scores
         sources = rag_res.get("sources", [])

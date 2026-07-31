@@ -91,7 +91,7 @@ export function useConversation(conversationId: string | null) {
   }, [load]);
 
   const sendMessage = React.useCallback(
-    async (text: string, audience: Audience = 'default') => {
+    async (text: string, audience: Audience = 'default', language: string = 'auto') => {
       if (!conversationId || !text.trim()) return;
 
       const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: text };
@@ -117,7 +117,7 @@ export function useConversation(conversationId: string | null) {
       const pendingId = crypto.randomUUID();
       setMessages((m) => [...m, { id: pendingId, role: 'assistant', content: '', pending: true }]);
 
-      const answer = await getLegalAnswer(text, audience);
+      const answer = await getLegalAnswer(text, audience, language);
 
       setMessages((m) =>
         m.map((msg) =>

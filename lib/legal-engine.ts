@@ -52,12 +52,12 @@ interface BackendChatResponse {
   retrieval_confidence?: number;
 }
 
-export async function getLegalAnswer(query: string, audience: Audience = 'default'): Promise<LegalAnswer> {
+export async function getLegalAnswer(query: string, audience: Audience = 'default', language: string = 'auto'): Promise<LegalAnswer> {
   try {
     const res = await fetch(`${API_URL}/chat/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: query, audience }),
+      body: JSON.stringify({ question: query, audience, language }),
     });
 
     if (!res.ok) {

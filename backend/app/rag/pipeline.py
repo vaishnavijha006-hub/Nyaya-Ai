@@ -136,7 +136,7 @@ LANGUAGE_NAME_MAP = {
 
 # ── Main pipeline ─────────────────────────────────────────────────────────────
 
-def ask_rag(question: str, history: Optional[list] = None, audience: str = "default") -> dict:
+def ask_rag(question: str, history: Optional[list] = None, audience: str = "default", language: Optional[str] = None) -> dict:
     """
     Full RAG pipeline: detect → memory → expanded retrieval → generate → return.
 
@@ -146,10 +146,10 @@ def ask_rag(question: str, history: Optional[list] = None, audience: str = "defa
                   the conversation so far. Used ONLY for retrieval expansion.
     """
 
-    # ── Step 1: Language Detection ────────────────────────────────────────────
-    lang = detect_language(question)
+    # ── Step 1: Language Detection / Explicit Target Language ─────────────────
+    lang = language if (language and language in LANGUAGE_NAME_MAP) else detect_language(question)
     response_lang_name = LANGUAGE_NAME_MAP.get(lang, 'English')
-    logger.info(f"[pipeline] Detected language: {lang!r} ({response_lang_name}) | Query: {question!r}")
+    logger.info(f"[pipeline] Target language: {lang!r} ({response_lang_name}) | Query: {question!r}")
 
     # ── Step 2: Conversation Memory ───────────────────────────────────────────
     # Build memory from history, then resolve vague references.
@@ -238,7 +238,7 @@ def ask_rag(question: str, history: Optional[list] = None, audience: str = "defa
 
 # ── Phase 10: Session-Scoped Pipeline ────────────────────────────────────────
 
-def ask_rag_session(question: str, session_id: str, history: Optional[list] = None, audience: str = "default") -> dict:
+def ask_rag_session(question: str, session_id: str, history: Optional[list] = None, audience: str = "default", language: Optional[str] = None) -> dict:
     """
     Phase 10 RAG pipeline for uploaded-PDF sessions.
 
@@ -256,8 +256,8 @@ def ask_rag_session(question: str, session_id: str, history: Optional[list] = No
     """
     from app.rag.session_retriever import retrieve_session  # late import to avoid circular
 
-    # ── Step 1: Language Detection ────────────────────────────────────────────
-    lang = detect_language(question)
+    # ── Step 1: Language Detection / Explicit Target Language ─────────────────
+    lang = language if (language and language in LANGUAGE_NAME_MAP) else detect_language(question)
     response_lang_name = LANGUAGE_NAME_MAP.get(lang, 'English')
     logger.info(f"[session_pipeline] lang={lang!r} session={session_id} query={question!r}")
 

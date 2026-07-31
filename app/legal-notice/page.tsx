@@ -226,9 +226,17 @@ function LegalNoticeGenerator() {
         notice,
         language:    responseLang,
       });
-      if (error) throw error;
-      toast.success('Notice saved to history!');
-      loadHistory();
+      if (error) {
+        if (error.code === 'PGRST301' || error.message.includes('404')) {
+          console.warn('[Supabase Warning] Table legal_notice_history does not exist yet.');
+          toast.error('Legal notice history feature requires executing database migration.');
+        } else {
+          throw error;
+        }
+      } else {
+        toast.success('Notice saved to history!');
+        loadHistory();
+      }
     } catch (err: any) {
       toast.error(err?.message ?? 'Failed to save history');
     } finally {
@@ -240,13 +248,15 @@ function LegalNoticeGenerator() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('legal_notice_history')
         .select('id, notice_type, recipient, notice, language, created_at')
         .order('created_at', { ascending: false })
         .limit(10);
-      if (data) setHistory(data as HistoryItem[]);
-    } catch { /* silent */ }
+      if (!error && data) setHistory(data as HistoryItem[]);
+    } catch (err) {
+      console.warn('[Supabase Warning] Could not load legal_notice_history:', err);
+    }
   };
 
   React.useEffect(() => { loadHistory(); }, []);

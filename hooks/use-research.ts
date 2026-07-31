@@ -29,10 +29,14 @@ export function useResearch() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setSessions(data || []);
+      if (error) {
+        console.warn('[Supabase Notice] research_sessions table not found in schema cache:', error.message);
+        setSessions([]);
+      } else {
+        setSessions(data || []);
+      }
     } catch (err: any) {
-      console.error('Error fetching research sessions:', err);
+      console.warn('[Supabase Warning] Error fetching research sessions:', err?.message || err);
     } finally {
       setLoading(false);
     }
@@ -65,7 +69,10 @@ export function useResearch() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.warn('[Supabase Notice] Could not save to research_sessions:', error.message);
+        return null;
+      }
 
       // Log analytics query event
       await supabase.from('analytics_events').insert({
@@ -77,7 +84,7 @@ export function useResearch() {
       setSessions((prev) => [data, ...prev]);
       return data;
     } catch (err) {
-      console.error('Error saving research session:', err);
+      console.warn('[Supabase Warning] Error saving research session:', err);
       return null;
     }
   };

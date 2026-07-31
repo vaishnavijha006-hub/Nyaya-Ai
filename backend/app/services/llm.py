@@ -265,20 +265,44 @@ def ask_llm_rag_stream(question: str, context: str, language: str = "en", histor
 
     sys_prompt = generate_rag_system_prompt(language)
     try:
-        stream = client.chat.completions.create(
-            model=PRIMARY_MODEL,
-            messages=[
-                {"role": "system", "content": sys_prompt},
-                {"role": "user",   "content": user_prompt},
-            ],
-            temperature=0.1,
-            max_tokens=1024,
-            stream=True,
-        )
-        for chunk in stream:
-            delta = chunk.choices[0].delta.content
-            if delta:
-                yield delta
+        if language == "en":
+            # Direct English stream
+            stream = client.chat.completions.create(
+                model=PRIMARY_MODEL,
+                messages=[
+                    {"role": "system", "content": sys_prompt},
+                    {"role": "user",   "content": user_prompt},
+                ],
+                temperature=0.1,
+                max_tokens=1024,
+                stream=True,
+            )
+            for chunk in stream:
+                delta = chunk.choices[0].delta.content
+                if delta:
+                    yield delta
+        else:
+            # Non-English target language: Generate complete answer, translate to target language, then stream chunks
+            logger.info(f"[llm] ask_llm_rag_stream target language is '{language}'. Generating full answer then translating for 100% target script fidelity.")
+            raw_response = client.chat.completions.create(
+                model=PRIMARY_MODEL,
+                messages=[
+                    {"role": "system", "content": sys_prompt},
+                    {"role": "user",   "content": user_prompt},
+                ],
+                temperature=0.1,
+                max_tokens=1024,
+            )
+            raw_answer = raw_response.choices[0].message.content or ""
+            
+            from app.services.translator import translate_text
+            translated_answer = translate_text(raw_answer, language)
+            
+            # Stream translated answer in natural word/sentence chunks for realistic typing animation
+            words = translated_answer.split(" ")
+            for i, word in enumerate(words):
+                chunk = word + (" " if i < len(words) - 1 else "")
+                yield chunk
     except Exception as exc:
         if _is_rate_limit_error(exc):
             logger.warning(f"Groq rate limited on stream, falling back to Gemini: {exc}")

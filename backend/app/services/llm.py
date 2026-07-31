@@ -30,7 +30,8 @@ _ISO_LANGUAGE_MAP = {
     "kn": "Kannada",
     "ml": "Malayalam",
     "pa": "Punjabi",
-    "ur": "Urdu"
+    "ur": "Urdu",
+    "hinglish": "Hinglish"
 }
 
 ALLOWED_AUDIENCES = {"default", "student", "lawyer", "upsc", "child"}
@@ -81,6 +82,8 @@ def generate_rag_system_prompt(lang_code: str) -> str:
         extra_instruction = " Answer completely in Hindi using natural and formal Hindi, written in Devanagari script."
     elif lang_code == "mr":
         extra_instruction = " Answer completely in Marathi using natural and formal Marathi."
+    elif lang_code == "hinglish":
+        extra_instruction = " Answer completely in Hinglish (Hindi written using the Latin script/alphabet, e.g., 'Aapka kanooni adhikar Article 21 ke tehat...')."
     
     return (
         f"You are Nyaya AI, an expert AI Legal Assistant specializing in Indian Law, the Constitution, and Landmark Supreme Court Judgments.\n"

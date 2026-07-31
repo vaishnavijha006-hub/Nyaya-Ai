@@ -435,7 +435,7 @@ function ChatPanel({
                   isDone={streamState.isDone}
                   sourceCitations={streamState.sourceCitations}
                   error={streamState.error}
-                  detectedLanguage="en"
+                  detectedLanguage={streamState.detectedLanguage}
                 />
               )}
             </div>

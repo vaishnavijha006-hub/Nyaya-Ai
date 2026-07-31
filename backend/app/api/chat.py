@@ -223,7 +223,7 @@ async def chat_stream(request: Request, body: ChatRequest):
             if token_count % 10 == 0:
                 await asyncio.sleep(0)
 
-        yield f"data: {json.dumps({'type': 'sources', 'citations': [c.model_dump() for c in stream_citations], 'sources': sources})}\n\n"
+        yield f"data: {json.dumps({'type': 'sources', 'citations': [c.model_dump() for c in stream_citations], 'sources': sources, 'detected_language': lang})}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
     return StreamingResponse(

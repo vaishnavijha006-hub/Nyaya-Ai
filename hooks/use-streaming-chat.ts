@@ -38,6 +38,8 @@ export interface StreamState {
   legacySources: Citation[];
   /** Non-null when an error occurs */
   error: string | null;
+  /** Detected response language code */
+  detectedLanguage: string;
 }
 
 const INITIAL_STATE: StreamState = {
@@ -48,6 +50,7 @@ const INITIAL_STATE: StreamState = {
   sourceCitations: [],
   legacySources: [],
   error: null,
+  detectedLanguage: 'en',
 };
 
 export interface UseStreamingChatOptions {
@@ -165,10 +168,12 @@ export function useStreamingChat({ question, audience = 'default' }: UseStreamin
               // ── Sources event: Phase 6 citations + legacy sources ──────────
               const citations = (event.citations as SourceCitation[]) ?? [];
               const sources = (event.sources as Citation[]) ?? [];
+              const lang = (event.detected_language as string) ?? 'en';
               setState((prev) => ({
                 ...prev,
                 sourceCitations: citations,
                 legacySources: sources,
+                detectedLanguage: lang,
               }));
             } else if (type === 'done') {
               // ── Done event: finalize ───────────────────────────────────────

@@ -114,7 +114,7 @@ def detect_language(text: str) -> str:
         return 'mr'
 
     if len(tokens & _HINGLISH_WORDS) >= 2:
-        return 'hi' # Hinglish mapped to 'hi' response language in Devanagari
+        return 'hinglish' # Romanized Hindi
 
     return 'en'
 
@@ -130,7 +130,8 @@ LANGUAGE_NAME_MAP = {
     'kn': 'Kannada',
     'ml': 'Malayalam',
     'pa': 'Punjabi',
-    'ur': 'Urdu'
+    'ur': 'Urdu',
+    'hinglish': 'Hinglish'
 }
 
 # ── Main pipeline ─────────────────────────────────────────────────────────────

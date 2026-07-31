@@ -34,7 +34,8 @@ const languageMeta: Record<string, { flag: string; label: string; style: string 
   kn: { flag: '🇮🇳', label: 'Kannada', style: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20' },
   ml: { flag: '🇮🇳', label: 'Malayalam', style: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' },
   pa: { flag: '🇮🇳', label: 'Punjabi', style: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20' },
-  ur: { flag: '🇮🇳', label: 'Urdu', style: 'bg-stone-500/10 text-stone-600 dark:text-stone-400 border-stone-500/20' }
+  ur: { flag: '🇮🇳', label: 'Urdu', style: 'bg-stone-500/10 text-stone-600 dark:text-stone-400 border-stone-500/20' },
+  hinglish: { flag: '🇮🇳', label: 'Hinglish', style: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' }
 };
 
 export function AIResponseCard({ response }: { response: AIResponse }) {

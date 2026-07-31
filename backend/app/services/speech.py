@@ -66,12 +66,19 @@ def speech_to_text(audio_file: Path) -> str:
         raise SpeechProcessingError("The uploaded audio file could not be found.")
 
     try:
-        result = load_whisper().transcribe(str(audio_file), fp16=False)
+        model = load_whisper()
+        # Whisper uses ffmpeg subprocess internally to load audio files
+        result = model.transcribe(str(audio_file), fp16=False)
     except SpeechProcessingError:
         raise
+    except FileNotFoundError as fnf_err:
+        logger.exception("FFmpeg executable not found on system path.")
+        raise SpeechProcessingError("FFmpeg is not installed or not found in PATH. Please install FFmpeg to enable Speech-to-Text.") from fnf_err
     except Exception as error:
         logger.exception("Whisper transcription failed for '%s'.", audio_file.name)
-        raise SpeechProcessingError("Whisper could not transcribe the uploaded audio.") from error
+        if "CreateProcess" in str(error) or "WinError 2" in str(error):
+            raise SpeechProcessingError("FFmpeg is missing on the server. Install FFmpeg to use voice recording.") from error
+        raise SpeechProcessingError(f"Whisper transcription failed: {error}") from error
 
     text = str(result.get("text", "")).strip()
     if not text:

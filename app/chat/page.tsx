@@ -345,6 +345,12 @@ function ChatPanel({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <span 
+            className="hidden sm:inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
+            title="Supports English, Hindi, Marathi, Tamil, Telugu, Bengali, Gujarati, Kannada, Malayalam, Punjabi, Urdu & Hinglish"
+          >
+            <span className="text-xs">🇮🇳</span> 12 Languages Auto-Detect
+          </span>
           <Select value={audience} onValueChange={(value) => updateAudience(value as Audience)}>
             <SelectTrigger className="h-9 w-[124px] rounded-xl">
               <SelectValue aria-label="Audience" />

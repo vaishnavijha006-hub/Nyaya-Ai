@@ -86,6 +86,35 @@ def translate_text(text: str, target_lang: str) -> str:
         translated = res.choices[0].message.content.strip()
         if not translated:
             raise RuntimeError("Empty response received from translation service.")
+        
+        # ── Language Validation Step ──────────────────────────────────────────
+        # Check if target is Devanagari script (hi, mr) and result still contains heavy English paragraphs
+        if target_lang in ("hi", "mr"):
+            import re
+            # Extract pure word tokens excluding citations/punctuation
+            words = re.findall(r'[a-zA-Z]{4,}', translated)
+            # Filter out standard proper citations like Article, Section, Act, Court
+            allowed_citations = {"article", "section", "court", "union", "india", "state", "versus", "judgement", "v", "act"}
+            english_leaks = [w for w in words if w.lower() not in allowed_citations]
+            
+            if len(english_leaks) > 5:
+                logger.warning(f"[translator] Validation notice: Detected {len(english_leaks)} English leaks in {target_lang} output ({english_leaks[:3]}). Re-enforcing Devanagari translation...")
+                strict_sys = (
+                    f"You are a strict legal translator. Convert the following text 100% into Devanagari script ({lang_label}). "
+                    f"Zero English sentences allowed. Every single paragraph, heading, and explanation MUST be written in Devanagari script."
+                )
+                re_res = client.chat.completions.create(
+                    model=PRIMARY_MODEL,
+                    messages=[
+                        {"role": "system", "content": strict_sys},
+                        {"role": "user", "content": translated},
+                    ],
+                    temperature=0.0,
+                    max_tokens=1500,
+                )
+                if re_res.choices[0].message.content:
+                    translated = re_res.choices[0].message.content.strip()
+
         logger.info(f"[translator] Translation complete into {target_lang}. Result length: {len(translated)}")
         return translated
     except Exception as exc:
@@ -97,4 +126,4 @@ def translate_text(text: str, target_lang: str) -> str:
         
         logger.error(f"[translator] Translation failed for language '{target_lang}': {exc}")
         # Explicit error message as requested — NEVER silently return English
-        return "उत्तर का अनुवाद करने में असमर्थ। कृपया पुनः प्रयास करें। (Unable to translate the response. Please try again.)"
+        return "उत्तर का अनुवाद करने में असमर्थ। कृपया पुनः प्रयास करें।"

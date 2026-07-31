@@ -61,16 +61,8 @@ export function StreamingResponseCard({
   const [feedback, setFeedback] = React.useState<'up' | 'down' | null>(null);
   const [speaking, setSpeaking] = React.useState(false);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
-  // Mutable ref for the text container — updated directly to avoid reconciliation
-  const textRef = React.useRef<HTMLParagraphElement>(null);
 
-  // Keep DOM text node in sync with streamedText without a React re-render
-  React.useEffect(() => {
-    if (textRef.current) {
-      textRef.current.textContent = streamedText;
-    }
-  }, [streamedText]);
-
+  // Cleanup audio on unmount
   React.useEffect(
     () => () => {
       audioRef.current?.pause();
@@ -188,7 +180,6 @@ export function StreamingResponseCard({
               className="relative"
             >
               <p
-                ref={textRef}
                 className="whitespace-pre-line text-[15px] leading-relaxed text-foreground/90"
               >
                 {streamedText}

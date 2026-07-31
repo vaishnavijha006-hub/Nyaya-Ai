@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -13,6 +14,7 @@ from app.api.legal_notice import router as legal_notice_router
 from app.api.speech import router as speech_router
 from app.api.tts import router as tts_router
 from app.api.voice import router as voice_router
+from app.api.admin import router as admin_router
 
 # Initialize Limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -29,8 +31,6 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Validate environment fast on startup
 validate_environment()
 
-import os
-
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -38,16 +38,17 @@ origins = [
 if os.getenv("ALLOWED_ORIGINS"):
     origins.extend([o.strip() for o in os.getenv("ALLOWED_ORIGINS").split(",") if o.strip()])
 
+# Configure CORSMiddleware before registering any routers
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"https://.*\.ngrok-free\.(app|dev)|https://.*\.loca\.lt",
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-from app.api.admin import router as admin_router
-
+# Register routers after CORSMiddleware
 app.include_router(chat_router)
 app.include_router(llm_router)
 app.include_router(research_router)
@@ -70,4 +71,3 @@ def health():
     return {
         "status": "healthy"
     }
-

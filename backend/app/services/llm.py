@@ -134,7 +134,15 @@ def generate_rag_system_prompt(lang_code: str) -> str:
     
     extra_instruction = f" You MUST write your entire response completely in {lang_name}."
     if lang_code == "hi":
-        extra_instruction = " You MUST write your entire response completely in Hindi using Devanagari script (हिंदी भाषा और देवनागरी लिपि). Do NOT output English paragraphs."
+        extra_instruction = (
+            " You MUST write your entire response completely in natural, spoken Hindi using Devanagari script (हिंदी भाषा और देवनागरी लिपि).\n"
+            "TEXT-TO-SPEECH PROMPTING REQUIREMENTS:\n"
+            "- Write in clean, conversational Devanagari Hindi without Hinglish.\n"
+            "- Write numbers in words (e.g. 'इक्कीस' instead of '21', 'दो हज़ार पाँच' instead of '2005').\n"
+            "- Expand abbreviations (e.g. 'सूचना का अधिकार' instead of 'RTI', 'भारतीय नागरिक सुरक्षा संहिता' instead of 'BNSS').\n"
+            "- Use natural commas and full stops for proper speech pauses.\n"
+            "- Keep legal terms simple and easy for a neural Text-to-Speech voice engine to pronounce."
+        )
     elif lang_code == "mr":
         extra_instruction = " You MUST write your entire response completely in Marathi using Devanagari script (मराठी भाषा और देवनागरी लिपि). Do NOT output English paragraphs."
     elif lang_code == "ta":

@@ -86,12 +86,40 @@ def speech_to_text(audio_file: Path) -> str:
     return text
 
 
+def normalize_for_tts(text: str) -> str:
+    """Prepare text for neural TTS: strip markdown, expand abbreviations, clean symbols."""
+    import re
+    # Remove markdown headers, bold, italics, code backticks, bullet symbols
+    t = re.sub(r'[*_#`~>|-]', ' ', text)
+    t = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', t) # strip links
+    
+    # Common legal abbreviation expansions for natural audio pronunciation
+    expansions = {
+        r'\bRTI\b': 'Right to Information',
+        r'\bFIR\b': 'First Information Report',
+        r'\bIPC\b': 'Indian Penal Code',
+        r'\bCrPC\b': 'Code of Criminal Procedure',
+        r'\bCPC\b': 'Code of Civil Procedure',
+        r'\bPIL\b': 'Public Interest Litigation',
+        r'\bSC\b': 'Supreme Court',
+        r'\bHC\b': 'High Court',
+        r'\bArt\.\b': 'Article',
+        r'\bSec\.\b': 'Section',
+    }
+    for abbr, full in expansions.items():
+        t = re.sub(abbr, full, t, flags=re.IGNORECASE)
+    
+    # Collapse multiple spaces and line breaks into natural speech pauses
+    t = re.sub(r'\s+', ' ', t).strip()
+    return t
+
+
 def text_to_speech(text: str) -> Path:
     """Generate a unique WAV file from text using cached Piper ONNX neural voice synthesis."""
     if not text or not text.strip():
         raise SpeechProcessingError("Text field cannot be empty.")
 
-    clean_text = text.strip()
+    clean_text = normalize_for_tts(text)
     GENERATED_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
     output_path = GENERATED_AUDIO_DIR / f"{uuid4()}.wav"
 

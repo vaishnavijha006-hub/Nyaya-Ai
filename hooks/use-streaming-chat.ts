@@ -21,7 +21,10 @@ import type { SourceCitation } from '@/components/nyaya/source-card';
 import type { Citation } from '@/components/nyaya/citation-card';
 import type { Audience } from '@/lib/legal-engine';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8000';
+const API_URL = typeof window !== 'undefined' && 
+  (window.location.hostname.includes('loca.lt') || window.location.hostname.includes('ngrok-free.dev'))
+  ? 'https://populace-kisser-sandpit.ngrok-free.dev'
+  : (process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8000');
 
 export interface StreamState {
   /** Accumulated text from token events */

@@ -132,47 +132,45 @@ def generate_audience_prompt(audience: str = "default") -> str:
 def generate_rag_system_prompt(lang_code: str) -> str:
     lang_name = _ISO_LANGUAGE_MAP.get(lang_code, "English")
     
-    extra_instruction = f" You MUST respond and write your entire explanation completely in {lang_name}."
+    extra_instruction = f" You MUST write your entire response completely in {lang_name}."
     if lang_code == "hi":
-        extra_instruction = " You MUST answer completely in Hindi using formal and natural Hindi, written entirely in Devanagari script (देवनागरी लिपि)."
+        extra_instruction = " You MUST write your entire response completely in Hindi using Devanagari script (हिंदी भाषा और देवनागरी लिपि). Do NOT output English paragraphs."
     elif lang_code == "mr":
-        extra_instruction = " You MUST answer completely in Marathi using formal and natural Marathi, written in Devanagari script."
+        extra_instruction = " You MUST write your entire response completely in Marathi using Devanagari script (मराठी भाषा और देवनागरी लिपि). Do NOT output English paragraphs."
     elif lang_code == "ta":
-        extra_instruction = " You MUST answer completely in Tamil (தமிழ்)."
+        extra_instruction = " You MUST write your entire response completely in Tamil (தமிழ்)."
     elif lang_code == "te":
-        extra_instruction = " You MUST answer completely in Telugu (తెలుగు)."
+        extra_instruction = " You MUST write your entire response completely in Telugu (తెలుగు)."
     elif lang_code == "bn":
-        extra_instruction = " You MUST answer completely in Bengali (বাংলা)."
+        extra_instruction = " You MUST write your entire response completely in Bengali (বাংলা)."
     elif lang_code == "gu":
-        extra_instruction = " You MUST answer completely in Gujarati (ગુજરાતી)."
+        extra_instruction = " You MUST write your entire response completely in Gujarati (ગુજરાતી)."
     elif lang_code == "kn":
-        extra_instruction = " You MUST answer completely in Kannada (ಕನ್ನಡ)."
+        extra_instruction = " You MUST write your entire response completely in Kannada (ಕನ್ನಡ)."
     elif lang_code == "ml":
-        extra_instruction = " You MUST answer completely in Malayalam (മലയാളം)."
+        extra_instruction = " You MUST write your entire response completely in Malayalam (മലയാളம்)."
     elif lang_code == "pa":
-        extra_instruction = " You MUST answer completely in Punjabi (ਪੰਜਾਬੀ)."
+        extra_instruction = " You MUST write your entire response completely in Punjabi (ਪੰਜਾਬੀ)."
     elif lang_code == "ur":
-        extra_instruction = " You MUST answer completely in Urdu (اردو)."
+        extra_instruction = " You MUST write your entire response completely in Urdu (اردو)."
     elif lang_code == "hinglish":
-        extra_instruction = " You MUST answer completely in Hinglish (Hindi words written using the Latin script/alphabet, e.g., 'Aapka kanooni adhikar Article 21 ke tehat...')."
-    
+        extra_instruction = " You MUST write your entire response in Hinglish (Hindi written in Roman/Latin alphabet)."
+
     return (
-        f"You are Nyaya AI, an expert AI Legal Assistant specializing in Indian Law, the Constitution, and Landmark Supreme Court Judgments.\n"
-        f"CRITICAL LANGUAGE INSTRUCTION: {extra_instruction}\n"
-        f"Even if the question is asked in English, because the user selected {lang_name}, translate and explain everything into {lang_name}.\n\n"
-        f"RESPONSE STRUCTURE REQUIREMENT:\n"
-        f"Whenever applicable based on retrieved sources, organize your legal answer into the following 4 sections (translate section headers to {lang_name} if appropriate, or keep them clear):\n"
+        f"You are Nyaya AI, an expert AI Legal Assistant specializing in Indian Law.\n"
+        f"CRITICAL OVERRIDE RULE: Output language MUST BE {lang_name.upper()}.\n"
+        f"{extra_instruction}\n"
+        f"Even if the question or legal documents are written in English, translate the explanation and produce the response in {lang_name}.\n\n"
+        f"STRUCTURE REQUIREMENT:\n"
+        f"Organize your answer into the following sections in {lang_name}:\n"
         f"1. Relevant Act / Statutory Provisions\n"
-        f"2. Relevant Judgment / Landmark Precedents\n"
+        f"2. Relevant Judgment / Precedents\n"
         f"3. Comprehensive Legal Explanation\n"
         f"4. Practical Meaning & Real-World Impact\n\n"
-        f"STRICT HALLUCINATION & TRANS-LANGUAGE RULES:\n"
-        f"1. Answer/explain ONLY using information present in the provided context.\n"
-        f"2. If sufficient context or legal evidence is unavailable in the provided context, DO NOT fabricate legal information. Respond in {lang_name} stating strictly that not enough legal evidence was found.\n"
-        f"3. Explanations must be generated completely and fluently in {lang_name}.\n"
-        f"4. DO NOT translate specific statute names, case citations (e.g. 'K.S. Puttaswamy v. Union of India'), section/article numbers (e.g. 'Article 21'), or page numbers. Keep specific legal identifiers in their standard citation form.\n"
-        f"5. Under no circumstances should you fabricate legal articles, rules, section numbers, or court judgements.\n"
-        f"6. Do not claim to be a lawyer or offer personalized legal advisory services."
+        f"RULES:\n"
+        f"1. Answer ONLY using information from the context.\n"
+        f"2. Do NOT translate formal proper names like case titles (e.g., 'K.S. Puttaswamy v. Union of India') or section numbers (e.g. 'Section 1'). Keep citations exact.\n"
+        f"3. All explanations, headings, and details must be in {lang_name}."
     )
 
 
@@ -209,16 +207,18 @@ def ask_llm(question: str, language: str = "en") -> str:
 def ask_llm_rag(question: str, context: str, language: str = "en", history: str = "", audience: str = "default") -> str:
     client = get_groq_client()
     normalized_audience = normalize_audience(audience)
-    logger.info(f"[llm] ask_llm_rag | lang={language!r} | audience={normalized_audience!r} | question={question!r}")
+    lang_name = _ISO_LANGUAGE_MAP.get(language, "English")
+    logger.info(f"[llm] ask_llm_rag | lang={language!r} ({lang_name}) | audience={normalized_audience!r} | question={question!r}")
     
     user_prompt = (
+        f"Target Output Language: {lang_name}\n"
         f"Audience Prompt:\n{generate_audience_prompt(normalized_audience)}\n\n"
         f"Context from Legal Documents & Judgments:\n\n{context}\n\n"
     )
     if history:
         user_prompt += f"Previous Conversation History:\n{history}\n\n"
         
-    user_prompt += f"---\n\nQuestion: {question}"
+    user_prompt += f"---\n\nQuestion: {question}\n\nRemember: Translate and write your complete response in {lang_name}."
 
     sys_prompt = generate_rag_system_prompt(language)
     try:
@@ -243,15 +243,17 @@ def ask_llm_rag(question: str, context: str, language: str = "en", history: str 
 def ask_llm_rag_stream(question: str, context: str, language: str = "en", history: str = "", audience: str = "default"):
     client = get_groq_client()
     normalized_audience = normalize_audience(audience)
-    logger.info(f"[llm] ask_llm_rag_stream | lang={language!r} | audience={normalized_audience!r} | question={question!r}")
+    lang_name = _ISO_LANGUAGE_MAP.get(language, "English")
+    logger.info(f"[llm] ask_llm_rag_stream | lang={language!r} ({lang_name}) | audience={normalized_audience!r} | question={question!r}")
     
     user_prompt = (
+        f"Target Output Language: {lang_name}\n"
         f"Audience Prompt:\n{generate_audience_prompt(normalized_audience)}\n\n"
         f"Context from Legal Documents & Judgments:\n\n{context}\n\n"
     )
     if history:
         user_prompt += f"Previous Conversation History:\n{history}\n\n"
-    user_prompt += f"---\n\nQuestion: {question}"
+    user_prompt += f"---\n\nQuestion: {question}\n\nRemember: Translate and write your complete response in {lang_name}."
 
     sys_prompt = generate_rag_system_prompt(language)
     try:

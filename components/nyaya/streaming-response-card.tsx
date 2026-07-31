@@ -186,11 +186,12 @@ export function StreamingResponseCard({
               aria-label="Legal answer"
               className="relative"
             >
-              {/* Text node updated via ref — no React reconciliation */}
               <p
                 ref={textRef}
                 className="whitespace-pre-line text-[15px] leading-relaxed text-foreground/90"
-              />
+              >
+                {streamedText}
+              </p>
               {/* Blinking cursor — visible only while streaming */}
               {isStreaming && !isDone && <StreamCursor />}
             </div>

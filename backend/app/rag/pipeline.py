@@ -151,35 +151,32 @@ def ask_rag(question: str, history: Optional[list] = None, audience: str = "defa
     response_lang_name = LANGUAGE_NAME_MAP.get(lang, 'English')
     logger.info(f"[pipeline] Target language: {lang!r} ({response_lang_name}) | Query: {question!r}")
 
-    # ── Step 2: Conversation Memory ───────────────────────────────────────────
+    # ── Step 2: Conversation Memory & Translation ─────────────────────────────
     # Build memory from history, then resolve vague references.
-    # The expanded query is used ONLY for retrieval — LLM gets the raw question.
     mem = memory_from_history(history or [])
     expanded_query = mem.resolve_reference(question)
     conversation_context = mem.get_context_string() if len(mem) > 0 else None
 
-    if expanded_query != question:
-        logger.info(f"[pipeline] Reference resolved: {question!r} → {expanded_query!r}")
+    # Translate query to English if non-English for optimal retrieval against English legal corpus
+    from app.services.translator import translate_query_to_english, translate_text
+    search_query = translate_query_to_english(expanded_query, lang)
+    if search_query != expanded_query:
+        logger.info(f"[pipeline] Query translated for retrieval: {expanded_query!r} → {search_query!r}")
 
     # ── Step 3: Vector + BM25 Search (context-augmented) ─────────────────────
-    docs = retrieve(expanded_query, conversation_context=conversation_context)
+    docs = retrieve(search_query, conversation_context=conversation_context)
     logger.info(f"[pipeline] Retrieved {len(docs)} vector chunks.")
 
     # ── Step 3: Build structured citations (Phase 6) ──────────────────────────
-    # Citations are extracted here, AFTER retrieval, BEFORE LLM call.
-    # They are never injected as raw JSON into the prompt.
     citations = build_citations(docs)
     readable_citation_block = build_readable_citation_block(citations)
     logger.info(f"[pipeline] Built {len(citations)} citation(s).")
 
     # ── Step 4: Build context string ──────────────────────────────────────────
     context_parts = []
-
-    # Prepend human-readable citation summary block so LLM knows the sources
     if readable_citation_block:
         context_parts.append(readable_citation_block)
 
-    # Append local vector chunks with provenance labels
     for doc in docs:
         page      = doc.metadata.get("page", "?")
         act_name  = doc.metadata.get("act_name") or doc.metadata.get("title") or "Legal Document"
@@ -199,9 +196,12 @@ def ask_rag(question: str, history: Optional[list] = None, audience: str = "defa
     context = "\n\n---\n\n".join(context_parts)
     logger.debug(f"[pipeline] Total context length: {len(context)} chars")
 
-    # ── Step 5: LLM Generation ────────────────────────────────────────────────
-    answer = llm_service.ask_llm_rag(question=question, context=context, language=lang, audience=audience)
-    logger.info("[pipeline] LLM generation complete.")
+    # ── Step 5: LLM Generation & Guaranteed Target Language Translation ─────
+    raw_answer = llm_service.ask_llm_rag(question=question, context=context, language=lang, audience=audience)
+    
+    # Translation Layer: Ensure 100% target language output
+    answer = translate_text(raw_answer, lang)
+    logger.info(f"[pipeline] Final LLM answer prepared in target language '{lang}'.")
 
     # ── Step 6: Build serializable source list (backward-compatible) ──────────
     vector_sources = []

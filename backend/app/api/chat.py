@@ -166,13 +166,16 @@ async def chat_stream(request: Request, body: ChatRequest):
     _expanded_q = _mem.resolve_reference(clean_question)
     _conv_ctx = _mem.get_context_string() if len(_mem) > 0 else None
 
+    from app.services.translator import translate_query_to_english
+    _search_q = translate_query_to_english(_expanded_q, lang)
+
     # Fetch context documents in threadpool to keep event loop responsive
     if body.session_id:
         from app.rag.session_retriever import retrieve_session as _retrieve_session
         logger.info(f"[chat_stream] Session retrieval → session_id={body.session_id}")
-        docs = await run_in_threadpool(_retrieve_session, body.session_id, _expanded_q, conversation_context=_conv_ctx)
+        docs = await run_in_threadpool(_retrieve_session, body.session_id, _search_q, conversation_context=_conv_ctx)
     else:
-        docs = await run_in_threadpool(retrieve, _expanded_q, conversation_context=_conv_ctx)
+        docs = await run_in_threadpool(retrieve, _search_q, conversation_context=_conv_ctx)
     
     context_parts = []
     sources = []

@@ -239,11 +239,18 @@ def ask_llm_rag(question: str, context: str, language: str = "en", history: str 
             temperature=0.1,
             max_tokens=1024,
         )
-        return response.choices[0].message.content
+        raw_ans = response.choices[0].message.content or ""
+        
+        # Mandatory Translation Layer Enforcement
+        from app.services.translator import translate_text
+        final_translated_ans = translate_text(raw_ans, language)
+        return final_translated_ans
     except Exception as exc:
         if _is_rate_limit_error(exc):
             logger.warning(f"Groq rate limited, falling back to Gemini: {exc}")
-            return _gemini_fallback(sys_prompt, user_prompt)
+            raw_fallback = _gemini_fallback(sys_prompt, user_prompt)
+            from app.services.translator import translate_text
+            return translate_text(raw_fallback, language)
         logger.error(f"ask_llm_rag failed: {exc}")
         raise
 

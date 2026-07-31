@@ -259,7 +259,8 @@ function ChatPanel({
     onAddUserMessage(trimmed);
     resetStream();
     setStreamingQuestion(trimmed);
-    await startStream(trimmed);
+    // Do NOT await — fire and forget so React can re-render with streaming updates
+    startStream(trimmed);
     setInput('');
     setFiles([]);
   };
@@ -372,7 +373,7 @@ function ChatPanel({
                 </div>
               ))}
             </div>
-          ) : isEmpty ? (
+          ) : isEmpty && !isStreamingActive ? (
             <EmptyState
               icon={Sparkles}
               title="Ask Nyaya anything about the law"
@@ -397,6 +398,24 @@ function ChatPanel({
                 </div>
               }
             />
+          ) : isEmpty && isStreamingActive ? (
+            /* First message in a new conversation — show streaming card immediately */
+            <div className="space-y-5">
+              <div className="flex justify-end">
+                <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-[15px] leading-relaxed text-primary-foreground">
+                  {streamingQuestion}
+                </div>
+              </div>
+              <StreamingResponseCard
+                streamedText={streamState.streamedText}
+                statusMessage={streamState.statusMessage}
+                isStreaming={streamState.isStreaming}
+                isDone={streamState.isDone}
+                sourceCitations={streamState.sourceCitations}
+                error={streamState.error}
+                detectedLanguage={streamState.detectedLanguage}
+              />
+            </div>
           ) : (
             <div className="space-y-5">
               <AnimatePresence initial={false}>

@@ -29,7 +29,7 @@ const typeMeta: Record<Citation['type'], { icon: typeof Scale; label: string; co
 import { KnowledgeClusterBadge } from '@/components/nyaya/knowledge-cluster-badge';
 
 export function CitationCard({ citation, index = 0 }: { citation: Citation; index?: number }) {
-  const meta = typeMeta[citation.type];
+  const meta = typeMeta[citation.type] ?? typeMeta['act'];
   const Icon = meta.icon;
   return (
     <motion.div

@@ -153,7 +153,7 @@ export function useConversation(conversationId: string | null) {
   );
 
   const saveStreamedAnswer = React.useCallback(
-    async (userText: string, assistantContent: string, citations: SourceCitation[]) => {
+    async (userText: string, assistantContent: string, citations: SourceCitation[], detectedLanguage?: string) => {
       if (!conversationId) return;
 
       // Immediately add the completed assistant message to local state so it
@@ -163,6 +163,7 @@ export function useConversation(conversationId: string | null) {
         role: 'assistant',
         content: assistantContent,
         sourceCitations: citations,
+        detected_language: detectedLanguage,
       };
       setMessages((prev) => [...prev, assistantMsg]);
 

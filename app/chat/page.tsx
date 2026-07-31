@@ -207,7 +207,7 @@ function ChatPanel({
   hasActive: boolean;
   onSend: (text: string, audience?: Audience) => void;
   onAddUserMessage: (text: string) => string;
-  onSaveStreamedAnswer: (userText: string, assistantContent: string, citations: any[]) => Promise<void>;
+  onSaveStreamedAnswer: (userText: string, assistantContent: string, citations: any[], detectedLanguage?: string) => Promise<void>;
   onNew: () => Promise<string | null>;
 }) {
   const [input, setInput] = React.useState('');
@@ -265,6 +265,7 @@ function ChatPanel({
         streamingQuestion,
         streamState.streamedText,
         streamState.sourceCitations,
+        streamState.detectedLanguage,
       ).catch((e: unknown) => console.error('Failed to persist streamed answer:', e));
 
       const t = setTimeout(() => {

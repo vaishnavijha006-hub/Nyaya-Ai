@@ -96,7 +96,7 @@ export function CitationList({ citations }: { citations: Citation[] }) {
   return (
     <div className="mt-4 grid gap-3 sm:grid-cols-2">
       {citations.map((c, i) => (
-        <CitationCard key={c.id} citation={c} index={i} />
+        <CitationCard key={c.id || `${c.title}-${i}`} citation={c} index={i} />
       ))}
     </div>
   );

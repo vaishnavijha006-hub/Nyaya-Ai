@@ -279,7 +279,7 @@ export function SourceCardList({ citations }: { citations: SourceCitation[] }) {
       {/* Responsive grid: 1 col mobile, 2 col sm+ */}
       <div className="grid gap-3 sm:grid-cols-2">
         {citations.map((c, i) => (
-          <SourceCard key={c.chunk_id || i} citation={c} index={i} />
+          <SourceCard key={c.chunk_id ? `${c.chunk_id}-${i}` : `source-${i}`} citation={c} index={i} />
         ))}
       </div>
     </section>

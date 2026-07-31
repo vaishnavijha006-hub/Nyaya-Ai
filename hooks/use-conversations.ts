@@ -67,16 +67,21 @@ export function useConversation(conversationId: string | null) {
     if (error) {
       console.warn('[Supabase Warning] Failed to fetch messages for conversation:', conversationId, error.message);
     } else if (data) {
-      setMessages(
-        (data as Array<{ id: string; role: 'user' | 'assistant'; content: string; citations: Citation[] | null }>).map(
-          (m) => ({
-            id: m.id,
-            role: m.role,
-            content: m.content,
-            citations: m.citations ?? undefined,
-          })
-        )
-      );
+      if (data.length > 0) {
+        // Only replace messages if Supabase returned real data.
+        // If empty, keep local optimistic messages so streaming stays visible.
+        setMessages(
+          (data as Array<{ id: string; role: 'user' | 'assistant'; content: string; citations: Citation[] | null }>).map(
+            (m) => ({
+              id: m.id,
+              role: m.role,
+              content: m.content,
+              citations: m.citations ?? undefined,
+            })
+          )
+        );
+      }
+      // data.length === 0 means brand-new conversation — keep local state intact
     }
     setLoading(false);
   }, [conversationId]);
@@ -151,6 +156,17 @@ export function useConversation(conversationId: string | null) {
     async (userText: string, assistantContent: string, citations: SourceCitation[]) => {
       if (!conversationId) return;
 
+      // Immediately add the completed assistant message to local state so it
+      // appears right after streaming ends (without needing a Supabase reload).
+      const assistantMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: assistantContent,
+        sourceCitations: citations,
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
+
+      // Persist user message to Supabase
       const { error: uErr } = await supabase.from('messages').insert({
         conversation_id: conversationId,
         role: 'user',
@@ -160,6 +176,7 @@ export function useConversation(conversationId: string | null) {
         console.warn('[Supabase Warning] Failed to save user message in stream:', uErr.message);
       }
 
+      // Persist assistant message to Supabase
       const { error: aErr } = await supabase.from('messages').insert({
         conversation_id: conversationId,
         role: 'assistant',

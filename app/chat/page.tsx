@@ -220,7 +220,7 @@ function ChatPanel({
     question: streamingQuestion,
     audience,
   });
-  const isStreamingActive = !!(streamingQuestion && (!streamState.isDone || streamState.isStreaming));
+  const isStreamingActive = !!(streamingQuestion && !streamState.isDone);
 
   React.useEffect(() => () => {
     if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();

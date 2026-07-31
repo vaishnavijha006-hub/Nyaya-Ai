@@ -135,7 +135,7 @@ export function StreamingResponseCard({
     languageMeta[detectedLanguage] ??
     { flag: '🇮🇳', label: 'Indic', style: 'bg-accent/10 text-accent border-accent/20' };
 
-  const showContent = isStreaming || isDone;
+  const showContent = isStreaming || isDone || !!statusMessage || !!streamedText;
   const showActions = isDone && !error;
   const showSources = isDone && sourceCitations.length > 0;
 

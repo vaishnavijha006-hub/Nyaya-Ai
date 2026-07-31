@@ -59,6 +59,7 @@ const INITIAL_STATE: StreamState = {
 export interface UseStreamingChatOptions {
   question: string;
   audience?: Audience;
+  language?: string;
   /** Set to a conversation-specific value if you need to key renders */
   conversationId?: string | null;
 }
@@ -74,7 +75,7 @@ export interface UseStreamingChatOptions {
  *   <button onClick={start}>Ask</button>
  *   <p>{state.streamedText}</p>
  */
-export function useStreamingChat({ question, audience = 'default' }: UseStreamingChatOptions) {
+export function useStreamingChat({ question, audience = 'default', language = 'auto' }: UseStreamingChatOptions) {
   const [state, setState] = React.useState<StreamState>(INITIAL_STATE);
   const abortRef = React.useRef<AbortController | null>(null);
 
@@ -108,7 +109,7 @@ export function useStreamingChat({ question, audience = 'default' }: UseStreamin
         const response = await fetch(`${API_URL}/chat/stream`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: q, audience }),
+          body: JSON.stringify({ question: q, audience, language }),
           signal: controller.signal,
         });
 
@@ -203,7 +204,7 @@ export function useStreamingChat({ question, audience = 'default' }: UseStreamin
         }));
       }
     },
-    [question, audience]
+    [question, audience, language]
   );
 
   return { state, start, reset };

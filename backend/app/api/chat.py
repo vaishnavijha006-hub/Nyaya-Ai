@@ -31,6 +31,7 @@ class ChatRequest(BaseModel):
     history: Optional[List[ChatMessage]] = Field(default=[])
     stream: Optional[bool] = Field(default=False)
     audience: Optional[str] = Field(default="default")
+    language: Optional[str] = Field(default="auto")
     session_id: Optional[str] = Field(default=None)
 
 
@@ -144,7 +145,10 @@ async def chat_stream(request: Request, body: ChatRequest):
     clean_question = sanitize_input(body.question)
     check_prompt_injection(clean_question)
 
-    lang = detect_language(clean_question)
+    if body.language and body.language != "auto" and body.language in LANGUAGE_NAME_MAP:
+        lang = body.language
+    else:
+        lang = detect_language(clean_question)
     history_list = []
     if body.history:
         for m in body.history[-6:]:

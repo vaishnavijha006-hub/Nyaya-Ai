@@ -35,6 +35,22 @@ const AUDIENCE_OPTIONS: Array<{ value: Audience; label: string }> = [
   { value: 'child', label: 'Child' },
 ];
 
+const LANGUAGE_OPTIONS: Array<{ value: string; label: string; flag: string }> = [
+  { value: 'auto', label: 'Auto-detect', flag: '🌐' },
+  { value: 'en', label: 'English', flag: '🇬🇧' },
+  { value: 'hi', label: 'Hindi (हिंदी)', flag: '🇮🇳' },
+  { value: 'mr', label: 'Marathi (मराठी)', flag: '🇮🇳' },
+  { value: 'ta', label: 'Tamil (தமிழ்)', flag: '🇮🇳' },
+  { value: 'te', label: 'Telugu (తెలుగు)', flag: '🇮🇳' },
+  { value: 'bn', label: 'Bengali (বাংলা)', flag: '🇮🇳' },
+  { value: 'gu', label: 'Gujarati (ગુજરાતી)', flag: '🇮🇳' },
+  { value: 'kn', label: 'Kannada (ಕನ್ನಡ)', flag: '🇮🇳' },
+  { value: 'ml', label: 'Malayalam (മലയാളം)', flag: '🇮🇳' },
+  { value: 'pa', label: 'Punjabi (ਪੰਜਾਬੀ)', flag: '🇮🇳' },
+  { value: 'ur', label: 'Urdu (اردو)', flag: '🇮🇳' },
+  { value: 'hinglish', label: 'Hinglish', flag: '🇮🇳' },
+];
+
 export default function ChatPage() {
   return (
     <AppShell>
@@ -196,6 +212,7 @@ function ChatPanel({
 }) {
   const [input, setInput] = React.useState('');
   const [audience, setAudience] = React.useState<Audience>('default');
+  const [language, setLanguage] = React.useState<string>('auto');
   const [listening, setListening] = React.useState(false);
   const [transcribing, setTranscribing] = React.useState(false);
   const [files, setFiles] = React.useState<string[]>([]);
@@ -205,9 +222,13 @@ function ChatPanel({
   const mediaStreamRef = React.useRef<MediaStream | null>(null);
 
   React.useEffect(() => {
-    const saved = window.localStorage.getItem('nyaya-audience') as Audience | null;
-    if (saved && AUDIENCE_OPTIONS.some((option) => option.value === saved)) {
-      setAudience(saved);
+    const savedAudience = window.localStorage.getItem('nyaya-audience') as Audience | null;
+    if (savedAudience && AUDIENCE_OPTIONS.some((option) => option.value === savedAudience)) {
+      setAudience(savedAudience);
+    }
+    const savedLanguage = window.localStorage.getItem('nyaya-language');
+    if (savedLanguage && LANGUAGE_OPTIONS.some((option) => option.value === savedLanguage)) {
+      setLanguage(savedLanguage);
     }
   }, []);
 
@@ -216,10 +237,16 @@ function ChatPanel({
     window.localStorage.setItem('nyaya-audience', value);
   };
 
+  const updateLanguage = (value: string) => {
+    setLanguage(value);
+    window.localStorage.setItem('nyaya-language', value);
+  };
+
   const [streamingQuestion, setStreamingQuestion] = React.useState('');
   const { state: streamState, start: startStream, reset: resetStream } = useStreamingChat({
     question: streamingQuestion,
     audience,
+    language,
   });
   const isStreamingActive = !!(streamingQuestion && !streamState.isDone);
 
@@ -345,19 +372,29 @@ function ChatPanel({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span 
-            className="hidden sm:inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
-            title="Supports English, Hindi, Marathi, Tamil, Telugu, Bengali, Gujarati, Kannada, Malayalam, Punjabi, Urdu & Hinglish"
-          >
-            <span className="text-xs">🇮🇳</span> 12 Languages Auto-Detect
-          </span>
+          {/* Language Selector Dropdown */}
+          <Select value={language} onValueChange={(value) => updateLanguage(value)}>
+            <SelectTrigger className="h-9 w-[135px] rounded-xl border-primary/30 bg-primary/5 text-xs font-semibold text-primary">
+              <SelectValue aria-label="Language" />
+            </SelectTrigger>
+            <SelectContent>
+              {LANGUAGE_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value} className="text-xs">
+                  <span className="mr-1.5">{option.flag}</span>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Audience Selector Dropdown */}
           <Select value={audience} onValueChange={(value) => updateAudience(value as Audience)}>
-            <SelectTrigger className="h-9 w-[124px] rounded-xl">
+            <SelectTrigger className="h-9 w-[115px] rounded-xl text-xs font-medium">
               <SelectValue aria-label="Audience" />
             </SelectTrigger>
             <SelectContent>
               {AUDIENCE_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
+                <SelectItem key={option.value} value={option.value} className="text-xs">
                   {option.label}
                 </SelectItem>
               ))}

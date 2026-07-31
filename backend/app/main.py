@@ -31,19 +31,12 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Validate environment fast on startup
 validate_environment()
 
-origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-if os.getenv("ALLOWED_ORIGINS"):
-    origins.extend([o.strip() for o in os.getenv("ALLOWED_ORIGINS").split(",") if o.strip()])
-
-# Configure CORSMiddleware before registering any routers
+# Configure CORSMiddleware - allow_origin_regex covers ALL origins including localhost
+# Using regex only to avoid Starlette conflict between allow_origins and allow_origin_regex
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_origin_regex=r"https://.*\.ngrok-free\.(app|dev)|https://.*\.loca\.lt",
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

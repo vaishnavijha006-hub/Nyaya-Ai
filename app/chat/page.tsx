@@ -259,7 +259,7 @@ function ChatPanel({
     onAddUserMessage(trimmed);
     resetStream();
     setStreamingQuestion(trimmed);
-    startStream(trimmed);
+    await startStream(trimmed);
     setInput('');
     setFiles([]);
   };

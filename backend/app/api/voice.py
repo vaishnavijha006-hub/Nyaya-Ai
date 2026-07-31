@@ -78,6 +78,7 @@ async def _save_audio_upload(audio_file: UploadFile) -> Path:
 @router.post("/transcribe", response_model=TranscribeResponse)
 async def transcribe_audio_endpoint(
     audio_file: UploadFile = File(..., alias="file", description="Recorded audio file (wav, mp3, m4a, webm)."),
+    language: Optional[str] = Form(default=None, description="Optional target transcription language code (e.g. hi)."),
 ) -> TranscribeResponse:
     """
     Speech-to-Text endpoint.
@@ -86,7 +87,7 @@ async def transcribe_audio_endpoint(
     """
     temp_path = await _save_audio_upload(audio_file)
     try:
-        transcript = await run_in_threadpool(speech_to_text, temp_path)
+        transcript = await run_in_threadpool(speech_to_text, temp_path, language=language)
         return TranscribeResponse(transcript=transcript)
     except SpeechProcessingError as error:
         logger.warning("STT failed: %s", error)

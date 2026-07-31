@@ -60,15 +60,19 @@ def load_piper_voice() -> Any:
         raise SpeechProcessingError("Piper ONNX neural voice model could not be loaded.") from error
 
 
-def speech_to_text(audio_file: Path) -> str:
+def speech_to_text(audio_file: Path, language: Optional[str] = None) -> str:
     """Transcribe an audio file with the cached Whisper model."""
     if not audio_file.is_file():
         raise SpeechProcessingError("The uploaded audio file could not be found.")
 
     try:
         model = load_whisper()
-        # Whisper uses ffmpeg subprocess internally to load audio files
-        result = model.transcribe(str(audio_file), fp16=False)
+        kwargs = {"fp16": False}
+        if language and language != "auto" and language in ("hi", "mr", "ta", "te", "bn", "gu", "kn", "ml", "pa", "ur", "en"):
+            kwargs["language"] = language
+        
+        logger.info(f"[speech] Transcribing audio with Whisper. Guided language: {language!r}")
+        result = model.transcribe(str(audio_file), **kwargs)
     except SpeechProcessingError:
         raise
     except FileNotFoundError as fnf_err:

@@ -98,13 +98,13 @@ async def generate_rti(request: Request, body: RtiRequest):
     )
 
     user_content = (
-        f"Department: {request.department}\n"
-        f"Public Authority: {request.public_authority}\n"
-        f"Information Required:\n{request.information_required}\n"
-        f"Applicant Name: {request.applicant_name}\n"
-        f"Address: {request.address}\n"
-        f"Contact: {request.contact}\n"
-        f"Email: {request.email}\n\n"
+        f"Department: {body.department}\n"
+        f"Public Authority: {body.public_authority}\n"
+        f"Information Required:\n{body.information_required}\n"
+        f"Applicant Name: {body.applicant_name}\n"
+        f"Address: {body.address}\n"
+        f"Contact: {body.contact}\n"
+        f"Email: {body.email}\n\n"
         "Please draft a structured RTI application matching exactly the standard format:\n"
         "To,\n"
         "The Public Information Officer\n"
@@ -136,7 +136,7 @@ async def generate_rti(request: Request, body: RtiRequest):
             max_tokens=1500
         )
         application_text = response.choices[0].message.content
-        logger.info(f"[RTI Generate] RTI application drafted successfully for applicant={request.applicant_name!r}")
+        logger.info(f"[RTI Generate] RTI application drafted successfully for applicant={body.applicant_name!r}")
         logger.debug(f"[RTI Generate] Groq response text length: {len(application_text) if application_text else 0}")
         
         if not application_text:

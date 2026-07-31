@@ -1,162 +1,133 @@
 """
-voice.py — Complete Multilingual Voice AI Pipeline Router.
+voice.py — Voice AI Router (Speech-to-Text & Text-to-Speech).
 
-Pipeline:
-Mic Audio
-↓
-Whisper STT (Groq / local Whisper model)
-↓
-Language Detection (Lingua / Regex / Keyword)
-↓
-Groq LLM + RAG Pipeline (ask_rag)
-↓
-Piper ONNX Neural TTS Engine
-↓
-Audio Response Stream / Base64 WAV
+Endpoints:
+  POST /voice/transcribe -> Speech-to-Text via OpenAI Whisper
+  POST /voice/speak      -> Text-to-Speech via Piper Neural ONNX
 """
 
-import os
-import uuid
+from __future__ import annotations
+
 import logging
-import base64
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, status
+from fastapi import APIRouter, File, HTTPException, UploadFile, BackgroundTasks, status
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from app.services.llm import get_groq_client
-from app.rag.pipeline import ask_rag, detect_language
-from app.services.speech import text_to_speech as piper_text_to_speech, SpeechProcessingError
+from app.services.speech import speech_to_text, SpeechProcessingError
+from app.services.tts import text_to_speech, TTSError
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/voice", tags=["voice-ai"])
 
-VOICE_DIR = Path("voice_cache")
-VOICE_DIR.mkdir(exist_ok=True)
+MAX_AUDIO_BYTES = 25 * 1024 * 1024
+ALLOWED_EXTENSIONS = {".wav", ".mp3", ".m4a", ".webm"}
 
 
-class STTResponse(BaseModel):
-    text: str
-    detected_language: str
+class TranscribeResponse(BaseModel):
+    transcript: str
 
 
-class TTSRequest(BaseModel):
-    text: str
-    language: str = "hi"
+class SpeakRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=10_000)
 
 
-class VoiceChatResponse(BaseModel):
-    transcription: str
-    detected_language: str
-    answer: str
-    sources: list
-    audio_base64: str
-
-
-from fastapi import APIRouter, UploadFile, File, HTTPException, Request, status
-from slowapi import Limiter
-from slowapi.util import get_remote_address
-
-limiter = Limiter(key_func=get_remote_address)
-
-@router.post("/stt", response_model=STTResponse)
-@limiter.limit("10/minute")
-async def speech_to_text_endpoint(request: Request, file: UploadFile = File(...)):
-    """
-    Transcribe audio file into text using Whisper and detect language.
-    Enforces 10 req/min rate limit.
-    """
-    audio_id = str(uuid.uuid4())
-    ext = Path(file.filename).suffix or ".wav"
-    temp_path = VOICE_DIR / f"{audio_id}{ext}"
-
+def _cleanup_file(file_path: Path) -> None:
+    """Helper background task to remove temporary generated audio file."""
     try:
-        with open(temp_path, "wb") as buffer:
-            buffer.write(await file.read())
+        if file_path.exists():
+            file_path.unlink()
+            logger.info("Cleaned up temp voice file: %s", file_path)
+    except Exception as error:
+        logger.warning("Failed to clean up temp voice file '%s': %s", file_path, error)
 
-        client = get_groq_client()
 
-        with open(temp_path, "rb") as audio_file:
-            transcription_res = client.audio.transcriptions.create(
-                file=(temp_path.name, audio_file.read()),
-                model="whisper-large-v3",
-                response_format="text"
-            )
+async def _save_audio_upload(audio_file: UploadFile) -> Path:
+    """Validate and persist uploaded audio file temporarily."""
+    filename = audio_file.filename or "recording.webm"
+    suffix = Path(filename).suffix.lower() or ".webm"
 
-        text = str(transcription_res).strip()
-        lang = detect_language(text)
+    if suffix not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=f"Unsupported audio format '{suffix}'. Supported formats: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
+        )
 
-        logger.info(f"STT completed: {text!r} | language={lang}")
-        return STTResponse(text=text, detected_language=lang)
+    content = await audio_file.read()
+    if not content or len(content.strip()) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="The uploaded audio file is empty.",
+        )
 
-    except Exception as exc:
-        logger.error(f"STT failed: {exc}")
+    if len(content) > MAX_AUDIO_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="The uploaded audio file exceeds the 25 MB limit.",
+        )
+
+    with NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+        temp_file.write(content)
+        return Path(temp_file.name)
+
+
+@router.post("/transcribe", response_model=TranscribeResponse)
+async def transcribe_audio_endpoint(
+    audio_file: UploadFile = File(..., alias="file", description="Recorded audio file (wav, mp3, m4a, webm)."),
+) -> TranscribeResponse:
+    """
+    Speech-to-Text endpoint.
+    Accepts audio file upload and returns transcription json payload:
+    {"transcript": "..."}
+    """
+    temp_path = await _save_audio_upload(audio_file)
+    try:
+        transcript = await run_in_threadpool(speech_to_text, temp_path)
+        return TranscribeResponse(transcript=transcript)
+    except SpeechProcessingError as error:
+        logger.warning("STT failed: %s", error)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Speech-to-Text transcription failed: {str(exc)}"
-        )
+            detail=str(error),
+        ) from error
     finally:
         if temp_path.exists():
-            temp_path.unlink()
+            temp_path.unlink(missing_ok=True)
+        await audio_file.close()
 
 
-@router.post("/tts")
-@limiter.limit("10/minute")
-async def text_to_speech_endpoint(request: Request, body: TTSRequest):
+@router.post("/speak", response_class=FileResponse)
+async def speak_text_endpoint(
+    request: SpeakRequest,
+    background_tasks: BackgroundTasks,
+) -> FileResponse:
     """
-    Synthesize text into natural neural speech WAV audio using Piper ONNX model.
-    Enforces 10 req/min rate limit.
+    Text-to-Speech endpoint.
+    Synthesizes requested text into speech via Piper ONNX, returns WAV audio,
+    and automatically cleans up temporary files after delivery.
     """
-    if not body.text or not body.text.strip():
+    if not request.text or not request.text.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Text field cannot be empty for TTS synthesis."
+            detail="Text field cannot be empty for TTS synthesis.",
         )
 
     try:
-        audio_path = piper_text_to_speech(body.text)
-        return FileResponse(path=str(audio_path), media_type="audio/wav", filename="response.wav")
-    except SpeechProcessingError as exc:
-        logger.error(f"TTS synthesis failed: {exc}")
+        audio_path = await run_in_threadpool(text_to_speech, request.text)
+    except (TTSError, SpeechProcessingError) as error:
+        logger.warning("TTS failed: %s", error)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(exc)
-        )
+            detail=str(error),
+        ) from error
 
-
-
-@router.post("/chat", response_model=VoiceChatResponse)
-async def voice_chat_pipeline(file: UploadFile = File(...)):
-    """
-    End-to-End Multilingual Voice AI Pipeline:
-    Audio Input → Whisper STT → Language Detection → RAG Query → Groq LLM → Piper Neural TTS Response.
-    """
-    # 1. Transcribe speech
-    stt_res = await speech_to_text_endpoint(file)
-    transcription = stt_res.text
-    lang = stt_res.detected_language
-
-    # 2. Execute RAG query
-    rag_res = ask_rag(transcription)
-    answer = rag_res["answer"]
-    sources = rag_res["sources"]
-
-    # 3. Generate Audio Response via Piper Neural TTS
-    try:
-        audio_path = piper_text_to_speech(answer[:500])
-        with open(audio_path, "rb") as f:
-            audio_b64 = base64.b64encode(f.read()).decode("utf-8")
-    except Exception as exc:
-        logger.error(f"Voice chat TTS generation fallback: {exc}")
-        audio_b64 = ""
-
-    return VoiceChatResponse(
-        transcription=transcription,
-        detected_language=lang,
-        answer=answer,
-        sources=sources,
-        audio_base64=audio_b64,
+    background_tasks.add_task(_cleanup_file, audio_path)
+    return FileResponse(
+        audio_path,
+        media_type="audio/wav",
+        filename="speech.wav",
     )
-

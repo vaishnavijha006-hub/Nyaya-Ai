@@ -54,14 +54,16 @@ function ChatLayout() {
     [conversations, search]
   );
 
-  const startNew = async () => {
+  const startNew = async (): Promise<string | null> => {
     const id = await createConversation('New conversation');
     if (id) {
       setActiveId(id);
       reload();
       router.push('/chat');
+      return id;
     } else {
       toast.error('Could not start a new conversation');
+      return null;
     }
   };
 
@@ -189,7 +191,7 @@ function ChatPanel({
   onSend: (text: string, audience?: Audience) => void;
   onAddUserMessage: (text: string) => string;
   onSaveStreamedAnswer: (userText: string, assistantContent: string, citations: any[]) => Promise<void>;
-  onNew: () => void;
+  onNew: () => Promise<string | null>;
 }) {
   const [input, setInput] = React.useState('');
   const [audience, setAudience] = React.useState<Audience>('default');
@@ -213,14 +215,11 @@ function ChatPanel({
     window.localStorage.setItem('nyaya-audience', value);
   };
 
-  // ── Phase 8: streaming state ────────────────────────────────────────────────
-  // Tracks the live in-progress streaming response separately from persisted messages.
   const [streamingQuestion, setStreamingQuestion] = React.useState('');
   const { state: streamState, start: startStream, reset: resetStream } = useStreamingChat({
     question: streamingQuestion,
     audience,
   });
-  // True while a streaming response is in progress (before done and persistence)
   const isStreamingActive = !!(streamingQuestion && (!streamState.isDone || streamState.isStreaming));
 
   React.useEffect(() => () => {
@@ -228,15 +227,12 @@ function ChatPanel({
     mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
   }, []);
 
-  // Scroll to bottom when messages update OR streaming text grows
   React.useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, streamState.streamedText]);
 
-  // Once streaming completes: save to Supabase, then reset the stream
   React.useEffect(() => {
     if (streamState.isDone && streamingQuestion && streamState.streamedText) {
-      // Persist the streamed answer without calling LLM again
       onSaveStreamedAnswer(
         streamingQuestion,
         streamState.streamedText,
@@ -252,16 +248,15 @@ function ChatPanel({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streamState.isDone]);
 
-  const submit = () => {
-    if (!hasActive) {
-      onNew();
-      return;
-    }
+  const submit = async () => {
     const trimmed = input.trim();
     if (!trimmed) return;
-    // 1. Add user bubble immediately (optimistic UI)
+
+    if (!hasActive) {
+      await onNew();
+    }
+
     onAddUserMessage(trimmed);
-    // 2. Start streaming response
     resetStream();
     setStreamingQuestion(trimmed);
     startStream(trimmed);
@@ -387,7 +382,13 @@ function ChatPanel({
                   {suggestedPrompts.slice(0, 4).map((p) => (
                     <button
                       key={p}
-                      onClick={() => (hasActive ? onSend(p, audience) : (onNew(), setTimeout(() => onSend(p, audience), 800)))}
+                      onClick={async () => {
+                        if (!hasActive) await onNew();
+                        onAddUserMessage(p);
+                        resetStream();
+                        setStreamingQuestion(p);
+                        startStream(p);
+                      }}
                       className="glass rounded-xl px-3.5 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary"
                     >
                       {p}
@@ -411,7 +412,7 @@ function ChatPanel({
                         {m.content}
                       </div>
                     </motion.div>
-                  ) : m.pending ? null /* pending suppressed — streaming card replaces it */ : (
+                  ) : m.pending ? null : (
                     <AIResponseCard
                       key={m.id}
                       response={{
@@ -426,7 +427,6 @@ function ChatPanel({
                 )}
               </AnimatePresence>
 
-              {/* ── Phase 8: Live streaming card — replaces ThinkingPulse ── */}
               {isStreamingActive && (
                 <StreamingResponseCard
                   streamedText={streamState.streamedText}

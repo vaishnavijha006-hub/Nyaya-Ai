@@ -16,8 +16,11 @@ PIPER_MODEL_PATH = BACKEND_DIR / "voices" / "hi_IN-pratham-medium.onnx"
 GENERATED_AUDIO_DIR = BACKEND_DIR / "temp" / "tts"
 
 
+from app.services.tts import text_to_speech, TTSError
+
 class SpeechProcessingError(RuntimeError):
     """Raised when audio cannot be transcribed or synthesized."""
+
 
 
 @lru_cache(maxsize=1)

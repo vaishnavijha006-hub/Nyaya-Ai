@@ -87,30 +87,44 @@ export function StreamingResponseCard({
     } catch { /* clipboard unavailable */ }
   };
 
+  const audioUrlRef = React.useRef<string | null>(null);
+
   const speak = async (): Promise<void> => {
     if (audioRef.current) {
       audioRef.current.pause();
-      URL.revokeObjectURL(audioRef.current.src);
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+        audioUrlRef.current = null;
+      }
       audioRef.current = null;
       setSpeaking(false);
       return;
     }
     if (!streamedText) return;
     setSpeaking(true);
-    let audioUrl: string | null = null;
     try {
       const blob = await synthesizeSpeech(streamedText);
-      audioUrl = URL.createObjectURL(blob);
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+      }
+      const audioUrl = URL.createObjectURL(blob);
+      audioUrlRef.current = audioUrl;
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
       audio.onended = () => {
-        URL.revokeObjectURL(audioUrl!);
+        if (audioUrlRef.current) {
+          URL.revokeObjectURL(audioUrlRef.current);
+          audioUrlRef.current = null;
+        }
         audioRef.current = null;
         setSpeaking(false);
       };
       await audio.play();
     } catch (err) {
-      if (audioUrl) URL.revokeObjectURL(audioUrl);
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+        audioUrlRef.current = null;
+      }
       setSpeaking(false);
       audioRef.current = null;
       toast.error(err instanceof Error ? err.message : 'Could not play audio response.');

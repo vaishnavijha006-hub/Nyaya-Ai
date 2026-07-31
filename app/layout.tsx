@@ -13,6 +13,7 @@ const display = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   title: 'Nyaya AI — Your AI-Powered Legal Assistant',
   description:
     'Nyaya AI helps you understand the law, draft legal documents, generate RTI applications, and get cited answers to legal questions in seconds.',

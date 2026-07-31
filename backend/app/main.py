@@ -12,6 +12,7 @@ from app.api.rti import router as rti_router
 from app.api.legal_notice import router as legal_notice_router
 from app.api.speech import router as speech_router
 from app.api.tts import router as tts_router
+from app.api.voice import router as voice_router
 
 # Initialize Limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -28,13 +29,24 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Validate environment fast on startup
 validate_environment()
 
+import os
+
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+if os.getenv("ALLOWED_ORIGINS"):
+    origins.extend([o.strip() for o in os.getenv("ALLOWED_ORIGINS").split(",") if o.strip()])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
 )
+
+from app.api.admin import router as admin_router
 
 app.include_router(chat_router)
 app.include_router(llm_router)
@@ -43,6 +55,9 @@ app.include_router(rti_router)
 app.include_router(legal_notice_router)
 app.include_router(speech_router)
 app.include_router(tts_router)
+app.include_router(voice_router)
+app.include_router(admin_router)
+
 
 @app.get("/")
 def root():

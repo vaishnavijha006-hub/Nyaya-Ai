@@ -13,6 +13,9 @@ from typing import Dict, Any
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 
+from app.utils.security import verify_supabase_jwt, AuthenticatedUser
+from fastapi import Depends
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["admin-dashboard"])
@@ -32,7 +35,7 @@ class AdminStatsResponse(BaseModel):
 
 
 @router.get("/stats", response_model=AdminStatsResponse)
-async def get_admin_stats():
+async def get_admin_stats(user: AuthenticatedUser = Depends(verify_supabase_jwt)):
     """
     Get system analytics telemetry for the Admin Dashboard.
     """
@@ -56,7 +59,7 @@ async def get_admin_stats():
 
 
 @router.get("/logs")
-async def get_system_logs():
+async def get_system_logs(user: AuthenticatedUser = Depends(verify_supabase_jwt)):
     """
     Get recent system logs for administrative inspection.
     """

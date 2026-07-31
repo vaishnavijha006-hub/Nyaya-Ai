@@ -78,8 +78,19 @@ async def transcribe_speech(
     return SpeechToTextResponse(text=text)
 
 
+from starlette.background import BackgroundTasks
+
+
+def _remove_temp_file(path: Path) -> None:
+    """Delete temporary audio file after response completes."""
+    try:
+        path.unlink(missing_ok=True)
+    except Exception as e:
+        logger.warning("Failed to delete temporary audio file %s: %s", path, e)
+
+
 @router.post("/text-to-speech", response_class=FileResponse)
-async def synthesize_speech(request: TextToSpeechRequest) -> FileResponse:
+async def synthesize_speech(request: TextToSpeechRequest, background_tasks: BackgroundTasks) -> FileResponse:
     """Generate and return a WAV file for the supplied text."""
     try:
         audio_path = await run_in_threadpool(text_to_speech, request.text)
@@ -90,4 +101,5 @@ async def synthesize_speech(request: TextToSpeechRequest) -> FileResponse:
             detail=str(error),
         ) from error
 
+    background_tasks.add_task(_remove_temp_file, audio_path)
     return FileResponse(audio_path, media_type="audio/wav", filename=audio_path.name)

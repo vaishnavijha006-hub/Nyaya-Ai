@@ -170,7 +170,7 @@ async def generate_legal_notice(request: Request, body: LegalNoticeRequest):
             max_tokens=2000,
         )
         notice_text = response.choices[0].message.content
-        logger.info("Legal notice generated successfully for %s", request.sender_name)
+        logger.info("Legal notice generated successfully for %s", body.sender_name)
         return LegalNoticeResponse(notice=notice_text, language=target_lang)
 
     except Exception as exc:

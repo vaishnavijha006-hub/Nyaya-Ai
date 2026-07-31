@@ -4,6 +4,7 @@ import asyncio
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -30,7 +31,6 @@ class ChatRequest(BaseModel):
     history: Optional[List[ChatMessage]] = Field(default=[])
     stream: Optional[bool] = Field(default=False)
     audience: Optional[str] = Field(default="default")
-    # Phase 10: optional session_id for uploaded-PDF RAG
     session_id: Optional[str] = Field(default=None)
 
 
@@ -49,7 +49,6 @@ class ChatResponse(BaseModel):
     detected_language: str
     response_language: str
     sources: List[SourceItem] = []
-    # Phase 6: structured citations — separate from sources, never embedded in answer
     citations: List[CitationItem] = []
     confidence_score: float = 0.92
     retrieval_confidence: float = 0.88
@@ -70,7 +69,7 @@ def _validate_audience(audience: Optional[str]) -> str:
 
 @router.post("/", response_model=ChatResponse)
 @limiter.limit("30/minute")
-def chat(request: Request, body: ChatRequest):
+async def chat(request: Request, body: ChatRequest):
     """
     RAG-grounded Chat Endpoint with 30 req/min rate limiting,
     prompt injection protection, and input sanitization.
@@ -90,15 +89,16 @@ def chat(request: Request, body: ChatRequest):
         # Phase 10: route to session pipeline if session_id provided
         if body.session_id:
             logger.info(f"[chat] Session routing → session_id={body.session_id}")
-            rag_res = ask_rag_session(
+            rag_res = await run_in_threadpool(
+                ask_rag_session,
                 question=clean_question,
                 session_id=body.session_id,
                 history=history_list,
                 audience=audience,
             )
         else:
-            # Execute production RAG query pipeline (Phase 9: pass history for memory)
-            rag_res = ask_rag(clean_question, history=history_list, audience=audience)
+            # Execute production RAG query pipeline
+            rag_res = await run_in_threadpool(ask_rag, clean_question, history=history_list, audience=audience)
         
         # Calculate composite confidence scores
         sources = rag_res.get("sources", [])
@@ -145,7 +145,6 @@ async def chat_stream(request: Request, body: ChatRequest):
     check_prompt_injection(clean_question)
 
     lang = detect_language(clean_question)
-    # Phase 9: build memory from history for contextual retrieval
     history_list = []
     if body.history:
         for m in body.history[-6:]:
@@ -157,17 +156,17 @@ async def chat_stream(request: Request, body: ChatRequest):
     _expanded_q = _mem.resolve_reference(clean_question)
     _conv_ctx = _mem.get_context_string() if len(_mem) > 0 else None
 
-    # Fetch context documents (Phase 10: session routing if session_id provided)
+    # Fetch context documents in threadpool to keep event loop responsive
     if body.session_id:
         from app.rag.session_retriever import retrieve_session as _retrieve_session
         logger.info(f"[chat_stream] Session retrieval → session_id={body.session_id}")
-        docs = _retrieve_session(body.session_id, _expanded_q, conversation_context=_conv_ctx)
+        docs = await run_in_threadpool(_retrieve_session, body.session_id, _expanded_q, conversation_context=_conv_ctx)
     else:
-        docs = retrieve(_expanded_q, conversation_context=_conv_ctx)
+        docs = await run_in_threadpool(retrieve, _expanded_q, conversation_context=_conv_ctx)
+    
     context_parts = []
     sources = []
 
-    # Phase 6: build structured citations for stream endpoint too
     stream_citations = build_citations(docs)
     readable_block = build_readable_citation_block(stream_citations)
 
@@ -200,16 +199,9 @@ async def chat_stream(request: Request, body: ChatRequest):
     context = "\n\n---\n\n".join(context_parts)
 
     async def event_generator():
-        # ── Phase 8: Status events ──────────────────────────────────────────────
-        # Emitted BEFORE expensive operations so the user sees instant feedback.
-        # Each status message replaces the previous one in the UI.
-
-        # Status 1: Immediate — sent before any retrieval starts
         yield f"data: {json.dumps({'type': 'status', 'message': 'Searching knowledge base...'})}\n\n"
-        await asyncio.sleep(0)   # yield control to the event loop immediately
+        await asyncio.sleep(0)
 
-        # Status 2: After retrieval — names the actual documents found
-        # Build dynamic label from retrieved docs metadata
         seen_acts: list[str] = []
         for doc in docs:
             act = doc.metadata.get("act_name") or doc.metadata.get("source") or "Legal Document"
@@ -220,38 +212,26 @@ async def chat_stream(request: Request, body: ChatRequest):
         yield f"data: {json.dumps({'type': 'status', 'message': f'Reading {reading_label}...'})}\n\n"
         await asyncio.sleep(0)
 
-        # Status 3: About to call LLM
         yield f"data: {json.dumps({'type': 'status', 'message': 'Generating legal answer...'})}\n\n"
         await asyncio.sleep(0)
 
-        # ── Token stream ────────────────────────────────────────────────────────
-        # Existing behavior preserved. ask_llm_rag_stream is a sync generator;
-        # each token is yielded as-is without buffering.
         token_count = 0
         for token in ask_llm_rag_stream(clean_question, context=context, language=lang, history=history_str, audience=audience):
             token_event = {"type": "token", "content": token}
             yield f"data: {json.dumps(token_event)}\n\n"
             token_count += 1
-            # Small async yield every 10 tokens to prevent blocking the event loop
             if token_count % 10 == 0:
                 await asyncio.sleep(0)
 
-        # ── Sources event (Phase 6 citations + legacy sources) ──────────────────
-        # Sent after generation so the UI can render source cards once complete.
         yield f"data: {json.dumps({'type': 'sources', 'citations': [c.model_dump() for c in stream_citations], 'sources': sources})}\n\n"
-
-        # ── Done ─────────────────────────────────────────────────────────────────
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
         headers={
-            # Prevent buffering by proxies/CDNs — critical for SSE
             "Cache-Control": "no-cache",
             "X-Accel-Buffering": "no",
             "Connection": "keep-alive",
         }
     )
-
-

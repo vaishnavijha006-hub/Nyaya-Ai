@@ -17,20 +17,20 @@ async function getErrorMessage(response: Response): Promise<string> {
 
 export async function transcribeAudio(audio: Blob): Promise<string> {
   const formData = new FormData();
-  formData.append("audio_file", audio, "recording.webm");
+  formData.append("file", audio, "recording.webm");
 
-  const response = await fetch(`${API_URL}/speech-to-text`, {
+  const response = await fetch(`${API_URL}/voice/transcribe`, {
     method: "POST",
     body: formData,
   });
   if (!response.ok) throw new Error(await getErrorMessage(response));
 
-  const payload = (await response.json()) as { text: string };
-  return payload.text;
+  const payload = (await response.json()) as { transcript: string };
+  return payload.transcript;
 }
 
 export async function synthesizeSpeech(text: string): Promise<Blob> {
-  const response = await fetch(`${API_URL}/text-to-speech`, {
+  const response = await fetch(`${API_URL}/voice/speak`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text }),
@@ -39,3 +39,4 @@ export async function synthesizeSpeech(text: string): Promise<Blob> {
 
   return response.blob();
 }
+

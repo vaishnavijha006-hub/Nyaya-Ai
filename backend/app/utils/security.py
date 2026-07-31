@@ -100,12 +100,15 @@ def verify_supabase_jwt(credentials: Optional[HTTPAuthorizationCredentials] = De
     token = credentials.credentials
     jwt_secret = os.getenv("SUPABASE_JWT_SECRET") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
+    if not jwt_secret:
+        logger.error("[Security Error] SUPABASE_JWT_SECRET / SUPABASE_SERVICE_ROLE_KEY not configured.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Authentication configuration error on server."
+        )
+
     try:
-        if jwt_secret:
-            payload = jwt.decode(token, jwt_secret, algorithms=["HS256"], options={"verify_aud": False})
-        else:
-            # Decode unverified structure for development mode fallback if secret unconfigured
-            payload = jwt.decode(token, options={"verify_signature": False})
+        payload = jwt.decode(token, jwt_secret, algorithms=["HS256"], options={"verify_aud": False})
 
         user_id = payload.get("sub") or payload.get("id")
         if not user_id:

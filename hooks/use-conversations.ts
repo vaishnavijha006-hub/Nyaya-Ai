@@ -11,7 +11,6 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   citations?: Citation[];
-  /** Phase 6: structured source citations from backend citations[] */
   sourceCitations?: SourceCitation[];
   pending?: boolean;
   detected_language?: string;
@@ -33,7 +32,12 @@ export function useConversations() {
       .from('conversations')
       .select('id, title, updated_at')
       .order('updated_at', { ascending: false });
-    if (!error && data) setConversations(data as Conversation[]);
+
+    if (error) {
+      console.warn('[Supabase Warning] Failed to fetch conversations:', error.message);
+    } else if (data) {
+      setConversations(data as Conversation[]);
+    }
     setLoading(false);
   }, []);
 
@@ -59,7 +63,10 @@ export function useConversation(conversationId: string | null) {
       .select('id, role, content, citations, created_at')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true });
-    if (!error && data) {
+
+    if (error) {
+      console.warn('[Supabase Warning] Failed to fetch messages for conversation:', conversationId, error.message);
+    } else if (data) {
       setMessages(
         (data as Array<{ id: string; role: 'user' | 'assistant'; content: string; citations: Citation[] | null }>).map(
           (m) => ({
@@ -85,53 +92,27 @@ export function useConversation(conversationId: string | null) {
       const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: text };
       setMessages((m) => [...m, userMsg]);
 
-      await supabase.from('messages').insert({
+      const { error: uErr } = await supabase.from('messages').insert({
         conversation_id: conversationId,
         role: 'user',
         content: text,
       });
-      await supabase
+      if (uErr) {
+        console.warn('[Supabase Warning] Failed to persist user message:', uErr.message);
+      }
+
+      const { error: cErr } = await supabase
         .from('conversations')
         .update({ updated_at: new Date().toISOString() })
         .eq('id', conversationId);
+      if (cErr) {
+        console.warn('[Supabase Warning] Failed to update conversation timestamp:', cErr.message);
+      }
 
       const pendingId = crypto.randomUUID();
       setMessages((m) => [...m, { id: pendingId, role: 'assistant', content: '', pending: true }]);
 
-      // Call the real FastAPI backend (async)
       const answer = await getLegalAnswer(text, audience);
-
-      // Save RAG response as a Research Session inside iNSIGHTS Assisted workspace
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          // Dynamic import or local function calls from useResearch
-          const articles = Array.from(
-            new Set(
-              (answer.citations || [])
-                .map((c) => c.article_number)
-                .filter(Boolean)
-            )
-          ) as string[];
-
-          await supabase.from('research_sessions').insert({
-            user_id: user.id,
-            query: text,
-            answer: answer.content,
-            detected_language: answer.detected_language || 'english',
-            sources: answer.citations || [],
-            articles_retrieved: articles,
-          });
-
-          await supabase.from('analytics_events').insert({
-            user_id: user.id,
-            event_type: 'query',
-            metadata: { query: text, detected_language: answer.detected_language || 'english', articles_count: articles.length }
-          });
-        }
-      } catch (saveErr) {
-        console.error('Failed to log research session automatically:', saveErr);
-      }
 
       setMessages((m) =>
         m.map((msg) =>
@@ -148,30 +129,16 @@ export function useConversation(conversationId: string | null) {
         )
       );
 
-      // Try auto-updating conversation title if it is "New Conversation" using first message
-      try {
-        const { data: conv } = await supabase
-          .from('conversations')
-          .select('title')
-          .eq('id', conversationId)
-          .single();
-        if (conv && (conv.title === 'New Conversation' || conv.title === 'New chat')) {
-          const generatedTitle = text.slice(0, 30) + (text.length > 30 ? '...' : '');
-          await supabase
-            .from('conversations')
-            .update({ title: generatedTitle })
-            .eq('id', conversationId);
-        }
-      } catch (titleErr) {
-        console.error('Failed to auto-update conversation title:', titleErr);
-      }
-
-      await supabase.from('messages').insert({
+      const { error: aErr } = await supabase.from('messages').insert({
         conversation_id: conversationId,
         role: 'assistant',
         content: answer.content,
         citations: answer.citations,
       });
+      if (aErr) {
+        console.warn('[Supabase Warning] Failed to persist assistant message:', aErr.message);
+      }
+
       await supabase
         .from('conversations')
         .update({ updated_at: new Date().toISOString() })
@@ -180,80 +147,40 @@ export function useConversation(conversationId: string | null) {
     [conversationId]
   );
 
-  /**
-   * saveStreamedAnswer — Phase 8 companion to useStreamingChat.
-   * Called after streaming isDone to persist the streamed response to Supabase.
-   * Does NOT call getLegalAnswer — the answer is already in streamedText.
-   */
   const saveStreamedAnswer = React.useCallback(
     async (userText: string, assistantContent: string, citations: SourceCitation[]) => {
       if (!conversationId) return;
 
-      // Persist user message
-      await supabase.from('messages').insert({
+      const { error: uErr } = await supabase.from('messages').insert({
         conversation_id: conversationId,
         role: 'user',
         content: userText,
       });
+      if (uErr) {
+        console.warn('[Supabase Warning] Failed to save user message in stream:', uErr.message);
+      }
 
-      // Persist assistant message with citations
-      await supabase.from('messages').insert({
+      const { error: aErr } = await supabase.from('messages').insert({
         conversation_id: conversationId,
         role: 'assistant',
         content: assistantContent,
         citations: citations,
       });
+      if (aErr) {
+        console.warn('[Supabase Warning] Failed to save assistant message in stream:', aErr.message);
+      }
 
-      // Update conversation timestamp
-      await supabase
+      const { error: cErr } = await supabase
         .from('conversations')
         .update({ updated_at: new Date().toISOString() })
         .eq('id', conversationId);
-
-      // Auto-update conversation title if still default
-      try {
-        const { data: conv } = await supabase
-          .from('conversations')
-          .select('title')
-          .eq('id', conversationId)
-          .single();
-        if (conv && (conv.title === 'New Conversation' || conv.title === 'New chat')) {
-          await supabase
-            .from('conversations')
-            .update({ title: userText.slice(0, 30) + (userText.length > 30 ? '...' : '') })
-            .eq('id', conversationId);
-        }
-      } catch { /* title update is non-critical */ }
-
-      // Research session logging (best-effort)
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await supabase.from('research_sessions').insert({
-            user_id: user.id,
-            query: userText,
-            answer: assistantContent,
-            detected_language: 'english',
-            sources: citations,
-            articles_retrieved: [],
-          });
-          await supabase.from('analytics_events').insert({
-            user_id: user.id,
-            event_type: 'query',
-            metadata: { query: userText, detected_language: 'english', streamed: true },
-          });
-        }
-      } catch (e) {
-        console.error('Failed to log research session:', e);
+      if (cErr) {
+        console.warn('[Supabase Warning] Failed to update conversation timestamp in stream:', cErr.message);
       }
     },
     [conversationId]
   );
 
-  /**
-   * addUserMessage — Phase 8 optimistic UI.
-   * Adds the user message bubble instantly before streaming begins.
-   */
   const addUserMessage = React.useCallback((text: string): string => {
     const id = crypto.randomUUID();
     const userMsg: ChatMessage = { id, role: 'user', content: text };
@@ -270,14 +197,24 @@ export async function createConversation(title: string): Promise<string | null> 
     .insert({ title })
     .select('id')
     .maybeSingle();
-  if (error || !data) return null;
-  return data.id as string;
+
+  if (error) {
+    console.warn('[Supabase Warning] Failed to create conversation record:', error.message);
+    return crypto.randomUUID();
+  }
+  return data?.id as string ?? crypto.randomUUID();
 }
 
 export async function deleteConversation(id: string) {
-  await supabase.from('conversations').delete().eq('id', id);
+  const { error } = await supabase.from('conversations').delete().eq('id', id);
+  if (error) {
+    console.warn('[Supabase Warning] Failed to delete conversation record:', error.message);
+  }
 }
 
 export async function renameConversation(id: string, title: string) {
-  await supabase.from('conversations').update({ title, updated_at: new Date().toISOString() }).eq('id', id);
+  const { error } = await supabase.from('conversations').update({ title, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) {
+    console.warn('[Supabase Warning] Failed to rename conversation record:', error.message);
+  }
 }

@@ -151,22 +151,8 @@ function RTIGenerator() {
   const downloadPDF = async () => {
     if (!application) return;
     try {
-      const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const margin = 22;
-      const maxW = pageWidth - margin * 2;
-      doc.setFont('Helvetica', 'normal');
-      doc.setFontSize(11);
-      const lines = doc.splitTextToSize(application, maxW) as string[];
-      let y = 22;
-      lines.forEach((line) => {
-        if (y > 275) { doc.addPage(); y = 22; }
-        doc.text(line, margin, y);
-        y += 6;
-      });
-      doc.save(`RTI_${form.applicant_name.replace(/\s+/g, '_')}.pdf`);
-      toast.success('PDF downloaded!');
+      const { downloadPDF: exportPDF } = await import('@/lib/exporter');
+      await exportPDF(application, `RTI_${form.applicant_name.replace(/\s+/g, '_')}.pdf`);
     } catch (err) {
       console.error(err);
       toast.error('PDF generation failed');
@@ -176,19 +162,8 @@ function RTIGenerator() {
   const downloadDOCX = async () => {
     if (!application) return;
     try {
-      const { Document, Packer, Paragraph, TextRun } = await import('docx');
-      const paragraphs = application.split('\n').map(
-        (line) => new Paragraph({ children: [new TextRun({ text: line, font: 'Calibri', size: 22 })], spacing: { after: 100 } })
-      );
-      const doc = new Document({ sections: [{ children: paragraphs }] });
-      const blob = await Packer.toBlob(doc);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `RTI_${form.applicant_name.replace(/\s+/g, '_')}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success('Word document downloaded!');
+      const { downloadDOCX: exportDOCX } = await import('@/lib/exporter');
+      await exportDOCX(application, `RTI_${form.applicant_name.replace(/\s+/g, '_')}.docx`);
     } catch (err) {
       console.error(err);
       toast.error('DOCX generation failed');

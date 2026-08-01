@@ -67,21 +67,29 @@ export default function WorkspacePage() {
 
       // Save to DB
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from('research_notes').upsert({
-          user_id: user.id,
-          session_id: selectedSession.id,
-          notes: data.notes,
-        });
+      const notesPayload: Record<string, any> = {
+        session_id: selectedSession.id,
+        notes: data.notes,
+      };
+      if (user?.id) notesPayload.user_id = user.id;
 
-        await supabase.from('analytics_events').insert({
-          user_id: user.id,
-          event_type: 'generate_notes',
-          metadata: { session_id: selectedSession.id },
-        });
-
-        toast.success('AI Notes saved successfully to Workspace!');
+      const { error: noteErr } = await supabase.from('research_notes').upsert(notesPayload);
+      if (noteErr) {
+        console.warn('[Supabase Notice] Failed to save research_notes:', noteErr.message);
       }
+
+      const eventPayload: Record<string, any> = {
+        event_type: 'generate_notes',
+        metadata: { session_id: selectedSession.id },
+      };
+      if (user?.id) eventPayload.user_id = user.id;
+
+      const { error: eventErr } = await supabase.from('analytics_events').insert(eventPayload);
+      if (eventErr) {
+        console.warn('[Supabase Notice] Failed to save analytics_event:', eventErr.message);
+      }
+
+      toast.success('AI Notes saved successfully to Workspace!');
     } catch (err) {
       console.error(err);
       toast.error('Failed to generate study notes');

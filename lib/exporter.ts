@@ -1,15 +1,13 @@
 'use client';
 
-import * as React from 'react';
-import { jsPDF } from 'jspdf';
-import { Document, Packer, Paragraph, TextRun, AlignmentType } from 'docx';
 import { toast } from 'sonner';
 
 /**
- * Downloads a text string as a cleanly formatted A4 PDF file.
+ * Downloads a text string as a cleanly formatted A4 PDF file using dynamic imports for jsPDF.
  */
-export function downloadPDF(content: string, filename: string = 'RTI_Application.pdf') {
+export async function downloadPDF(content: string, filename: string = 'RTI_Application.pdf') {
   try {
+    const { jsPDF } = await import('jspdf');
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -49,10 +47,11 @@ export function downloadPDF(content: string, filename: string = 'RTI_Application
 }
 
 /**
- * Downloads a text string as an editable DOCX (Microsoft Word) file.
+ * Downloads a text string as an editable DOCX (Microsoft Word) file using dynamic imports.
  */
-export function downloadDOCX(content: string, filename: string = 'RTI_Application.docx') {
+export async function downloadDOCX(content: string, filename: string = 'RTI_Application.docx') {
   try {
+    const { Document, Packer, Paragraph, TextRun } = await import('docx');
     const paragraphs = content.split('\n').map((line) => {
       return new Paragraph({
         children: [
@@ -77,15 +76,14 @@ export function downloadDOCX(content: string, filename: string = 'RTI_Applicatio
       ],
     });
 
-    Packer.toBlob(doc).then((blob) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success('Word document download complete!');
-    });
+    const blob = await Packer.toBlob(doc);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Word document download complete!');
   } catch (err) {
     console.error('Failed to generate DOCX:', err);
     toast.error('Could not download DOCX. Falling back to plain text.');

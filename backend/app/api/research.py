@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import logging
-from app.services.llm import get_groq_client
+from app.services.llm import get_groq_client, PRIMARY_MODEL, _is_rate_limit_error, _gemini_fallback_stream
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +84,7 @@ async def generate_notes(request: NotesRequest):
 
     try:
         response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=PRIMARY_MODEL,
             messages=[
                 {"role": "system", "content": "You are a professional legal research assistant specializing in Indian Law."},
                 {"role": "user", "content": prompt}
@@ -95,6 +95,8 @@ async def generate_notes(request: NotesRequest):
         notes = response.choices[0].message.content
         return NotesResponse(notes=notes)
     except Exception as exc:
+        if _is_rate_limit_error(exc):
+            logger.warning("Groq rate limit hit during research notes generation. This endpoint currently does not support Gemini fallback.")
         logger.error(f"Failed to generate research notes: {exc}")
         raise HTTPException(status_code=500, detail=f"Failed to generate notes: {str(exc)}")
 

@@ -25,6 +25,8 @@ LANGUAGE_PROMPTS = {
     "hinglish": "Hinglish (Hindi written in Roman/Latin script)",
 }
 
+import time
+
 def translate_query_to_english(text: str, source_lang: str) -> str:
     """Translate user query to English for accurate RAG vector search if non-English."""
     if source_lang == "en" or not text.strip():
@@ -33,28 +35,34 @@ def translate_query_to_english(text: str, source_lang: str) -> str:
     logger.info(f"[translator] Translating user query from '{source_lang}' to English: {text!r}")
     sys_prompt = "You are a professional legal translator. Translate the given text into clean, clear English suitable for legal document search. Output ONLY the English translation without explanation or extra text."
     
-    try:
-        client = get_groq_client()
-        res = client.chat.completions.create(
-            model=PRIMARY_MODEL,
-            messages=[
-                {"role": "system", "content": sys_prompt},
-                {"role": "user", "content": text},
-            ],
-            temperature=0.0,
-            max_tokens=300,
-        )
-        translated = res.choices[0].message.content.strip()
-        logger.info(f"[translator] Translated query: {translated!r}")
-        return translated if translated else text
-    except Exception as exc:
-        logger.warning(f"[translator] Query translation to English failed: {exc}. Using raw query.")
-        return text
+    for attempt in range(3):
+        try:
+            client = get_groq_client()
+            res = client.chat.completions.create(
+                model=PRIMARY_MODEL,
+                messages=[
+                    {"role": "system", "content": sys_prompt},
+                    {"role": "user", "content": text},
+                ],
+                temperature=0.0,
+                max_tokens=300,
+            )
+            translated = res.choices[0].message.content.strip()
+            logger.info(f"[translator] Translated query: {translated!r}")
+            return translated if translated else text
+        except Exception as exc:
+            if _is_rate_limit_error(exc) and attempt < 2:
+                logger.warning(f"[translator] Groq rate limited on query translation (attempt {attempt+1}/3), backing off 2s...")
+                time.sleep(2.5)
+                continue
+            logger.warning(f"[translator] Query translation to English failed: {exc}. Using raw query.")
+            return text
+    return text
 
 
 def translate_text(text: str, target_lang: str) -> str:
     """
-    Translate final legal answer into target_lang with strict error handling.
+    Translate final legal answer into target_lang with strict error handling and retry logic.
     If target_lang is 'en', returns text as-is.
     """
     if target_lang == "en" or not text.strip():
@@ -72,58 +80,61 @@ def translate_text(text: str, target_lang: str) -> str:
         f"3. Do NOT add meta commentary like 'Here is the translation:' — return ONLY the final translated response."
     )
 
-    try:
-        client = get_groq_client()
-        res = client.chat.completions.create(
-            model=PRIMARY_MODEL,
-            messages=[
-                {"role": "system", "content": sys_prompt},
-                {"role": "user", "content": text},
-            ],
-            temperature=0.1,
-            max_tokens=1500,
-        )
-        translated = res.choices[0].message.content.strip()
-        if not translated:
-            raise RuntimeError("Empty response received from translation service.")
-        
-        # ── Language Validation Step ──────────────────────────────────────────
-        # Check if target is Devanagari script (hi, mr) and result still contains heavy English paragraphs
-        if target_lang in ("hi", "mr"):
-            import re
-            # Extract pure word tokens excluding citations/punctuation
-            words = re.findall(r'[a-zA-Z]{4,}', translated)
-            # Filter out standard proper citations like Article, Section, Act, Court
-            allowed_citations = {"article", "section", "court", "union", "india", "state", "versus", "judgement", "v", "act"}
-            english_leaks = [w for w in words if w.lower() not in allowed_citations]
+    for attempt in range(3):
+        try:
+            client = get_groq_client()
+            res = client.chat.completions.create(
+                model=PRIMARY_MODEL,
+                messages=[
+                    {"role": "system", "content": sys_prompt},
+                    {"role": "user", "content": text},
+                ],
+                temperature=0.1,
+                max_tokens=1500,
+            )
+            translated = res.choices[0].message.content.strip()
+            if not translated:
+                raise RuntimeError("Empty response received from translation service.")
             
-            if len(english_leaks) > 5:
-                logger.warning(f"[translator] Validation notice: Detected {len(english_leaks)} English leaks in {target_lang} output ({english_leaks[:3]}). Re-enforcing Devanagari translation...")
-                strict_sys = (
-                    f"You are a strict legal translator. Convert the following text 100% into Devanagari script ({lang_label}). "
-                    f"Zero English sentences allowed. Every single paragraph, heading, and explanation MUST be written in Devanagari script."
-                )
-                re_res = client.chat.completions.create(
-                    model=PRIMARY_MODEL,
-                    messages=[
-                        {"role": "system", "content": strict_sys},
-                        {"role": "user", "content": translated},
-                    ],
-                    temperature=0.0,
-                    max_tokens=1500,
-                )
-                if re_res.choices[0].message.content:
-                    translated = re_res.choices[0].message.content.strip()
+            # ── Language Validation Step ──────────────────────────────────────────
+            # Check if target is Devanagari script (hi, mr) and result still contains heavy English paragraphs
+            if target_lang in ("hi", "mr"):
+                import re
+                words = re.findall(r'[a-zA-Z]{4,}', translated)
+                allowed_citations = {"article", "section", "court", "union", "india", "state", "versus", "judgement", "v", "act"}
+                english_leaks = [w for w in words if w.lower() not in allowed_citations]
+                
+                if len(english_leaks) > 5:
+                    logger.warning(f"[translator] Validation notice: Detected {len(english_leaks)} English leaks in {target_lang} output ({english_leaks[:3]}). Re-enforcing Devanagari translation...")
+                    strict_sys = (
+                        f"You are a strict legal translator. Convert the following text 100% into Devanagari script ({lang_label}). "
+                        f"Zero English sentences allowed. Every single paragraph, heading, and explanation MUST be written in Devanagari script."
+                    )
+                    re_res = client.chat.completions.create(
+                        model=PRIMARY_MODEL,
+                        messages=[
+                            {"role": "system", "content": strict_sys},
+                            {"role": "user", "content": translated},
+                        ],
+                        temperature=0.0,
+                        max_tokens=1500,
+                    )
+                    if re_res.choices[0].message.content:
+                        translated = re_res.choices[0].message.content.strip()
 
-        logger.info(f"[translator] Translation complete into {target_lang}. Result length: {len(translated)}")
-        return translated
-    except Exception as exc:
-        if _is_rate_limit_error(exc):
-            logger.warning(f"[translator] Groq rate limited during translation, attempting Gemini fallback: {exc}")
-            fallback_res = _gemini_fallback(sys_prompt, text)
-            if fallback_res and not fallback_res.startswith("Service temporarily busy"):
-                return fallback_res
-        
-        logger.error(f"[translator] Translation failed for language '{target_lang}': {exc}")
-        # Explicit error message as requested — NEVER silently return English
-        return "उत्तर का अनुवाद करने में असमर्थ। कृपया पुनः प्रयास करें।"
+            logger.info(f"[translator] Translation complete into {target_lang}. Result length: {len(translated)}")
+            return translated
+        except Exception as exc:
+            if _is_rate_limit_error(exc):
+                if attempt < 2:
+                    logger.warning(f"[translator] Groq rate limited (attempt {attempt+1}/3), retrying in 3s...")
+                    time.sleep(3.0)
+                    continue
+                logger.warning(f"[translator] Groq rate limited after retries, attempting Gemini fallback: {exc}")
+                fallback_res = _gemini_fallback(sys_prompt, text)
+                if fallback_res and not fallback_res.startswith("Service temporarily busy"):
+                    return fallback_res
+            
+            logger.error(f"[translator] Translation failed for language '{target_lang}': {exc}")
+            return "उत्तर का अनुवाद करने में असमर्थ। कृपया पुनः प्रयास करें।"
+    return "उत्तर का अनुवाद करने में असमर्थ। कृपया पुनः प्रयास करें।"

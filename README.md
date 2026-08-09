@@ -16,10 +16,15 @@
 - ⚡ **Hybrid RAG Engine (BM25 + Vector Search)**: Merges sparse keyword search (BM25) and dense semantic vector search (`BAAI/bge-small-en-v1.5`) via **Reciprocal Rank Fusion (RRF)** for zero-hallucination accuracy.
 - 📜 **Statute Coverage**: Grounded in official text of the **Constitution of India**, **Bharatiya Nyaya Sanhita (BNS)**, **Bharatiya Nagarik Suraksha Sanhita (BNSS)**, **Bharatiya Sakshya Adhiniyam (BSA)**, RTI Act, IT Act, and landmark Supreme Court judgments.
 - 📄 **Automated Document Drafting**:
+  - **FIR Drafting Assistant**: Step-by-step form to perfectly draft formal police complaints under BNS/CrPC.
   - **RTI Application Generator**: Generates formatted Right to Information applications ready for submission to PIOs.
   - **Legal Notice Generator**: Generates formal legal notices formatted for Indian legal standards.
+  - *All generated documents can be instantly exported to PDF or DOCX.*
 - 📁 **Session-Scoped PDF RAG**: Upload legal PDFs and query document contents dynamically with custom vector collections.
-- 🎙️ **Offline Voice AI**: Transcribes speech via Whisper STT and synthesizes neural audio via Piper ONNX.
+- 🤝 **Lawyer Network Directory**: A dedicated platform to find, filter, and seamlessly contact verified advocates by sharing AI chat context.
+- 🗣️ **Multilingual Support**: Supports 12+ Indian languages (Hindi, Marathi, Tamil, etc.) for Chat, RTI, and Legal Notices.
+- 🎙️ **Offline Voice AI**: Transcribes speech via Whisper STT and synthesizes neural Devanagari audio via Piper ONNX.
+- 📈 **Real-Time Analytics**: Built on Supabase Realtime to track research sessions and chat queries.
 - ⚡ **Server-Sent Events (SSE)**: Real-time token streaming with live status updates and structured legal citations.
 
 ---

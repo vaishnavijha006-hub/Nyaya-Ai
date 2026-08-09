@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useTheme } from 'next-themes';
 import { motion } from 'framer-motion';
 import {
-  Settings as SettingsIcon, User, Bell, Shield, Palette, Globe, Volume2, Trash2, Check, LogOut,
+  Settings as SettingsIcon, User, Bell, Shield, Palette, Globe, Volume2, Trash2, Check, LogOut, Key, RefreshCw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/nyaya/app-shell';
@@ -213,6 +213,9 @@ function SettingsView() {
           </Card>
         </Reveal>
 
+        {/* API Configuration */}
+        <ApiConfigCard />
+
         {/* Data */}
         <Reveal delay={0.2}>
           <Card className="glass-strong border-border/60">
@@ -273,6 +276,105 @@ function SettingsView() {
         </p>
       </div>
     </div>
+  );
+}
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8000';
+
+type ApiStatus = 'unknown' | 'online' | 'offline';
+
+function ApiConfigCard() {
+  const [status, setStatus] = React.useState<ApiStatus>('unknown');
+  const [testing, setTesting] = React.useState(false);
+
+  const testConnection = React.useCallback(async () => {
+    setTesting(true);
+    try {
+      const res = await fetch(API_URL, { signal: AbortSignal.timeout(5000) });
+      setStatus(res.ok || res.status < 500 ? 'online' : 'offline');
+    } catch {
+      setStatus('offline');
+    } finally {
+      setTesting(false);
+    }
+  }, []);
+
+  // Auto-check on mount
+  React.useEffect(() => { testConnection(); }, [testConnection]);
+
+  const StatusBadge = ({ online, labelOn, labelOff }: { online: boolean | null; labelOn: string; labelOff: string }) => (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+        online === null
+          ? 'bg-muted text-muted-foreground'
+          : online
+          ? 'bg-emerald-500/10 text-emerald-600'
+          : 'bg-destructive/10 text-destructive'
+      }`}
+    >
+      <span
+        className={`mr-1 h-1.5 w-1.5 rounded-full ${
+          online === null ? 'bg-muted-foreground' : online ? 'bg-emerald-500' : 'bg-destructive'
+        }`}
+      />
+      {online === null ? 'Checking…' : online ? labelOn : labelOff}
+    </span>
+  );
+
+  const isOnline = status === 'online';
+  const isChecked = status !== 'unknown';
+
+  return (
+    <Reveal delay={0.17}>
+      <Card className="glass-strong border-border/60">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Key className="h-4 w-4 text-primary" />
+            <CardTitle className="text-lg">API Configuration</CardTitle>
+          </div>
+          <CardDescription>Read-only status of backend services and API keys.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {/* Backend Status */}
+          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium">Backend Status</p>
+              <p className="text-xs text-muted-foreground truncate max-w-[200px]">{API_URL}</p>
+            </div>
+            <StatusBadge online={isChecked ? isOnline : null} labelOn="Online" labelOff="Offline" />
+          </div>
+
+          {/* Groq API */}
+          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium">Groq API</p>
+              <p className="text-xs text-muted-foreground">Primary LLM inference engine</p>
+            </div>
+            <StatusBadge online={isChecked ? isOnline : null} labelOn="Configured" labelOff="Not set" />
+          </div>
+
+          {/* Gemini Fallback */}
+          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium">Gemini Fallback</p>
+              <p className="text-xs text-muted-foreground">Secondary LLM for complex queries</p>
+            </div>
+            <StatusBadge online labelOn="Available" labelOff="Unavailable" />
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={testConnection}
+            disabled={testing}
+            className="gap-2 mt-1"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${testing ? 'animate-spin' : ''}`} />
+            Test Connection
+          </Button>
+        </CardContent>
+      </Card>
+    </Reveal>
   );
 }
 

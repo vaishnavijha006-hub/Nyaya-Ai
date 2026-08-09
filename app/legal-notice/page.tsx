@@ -1,4 +1,5 @@
 'use client';
+import jsPDF from 'jspdf';
 
 import * as React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -48,7 +49,7 @@ const LANGUAGES = [
   { code: 'kn',       label: '🇮🇳 Kannada'  },
   { code: 'ml',       label: '🇮🇳 Malayalam'},
   { code: 'pa',       label: '🇮🇳 Punjabi'  },
-  { code: 'ur',       label: '🇵🇰 Urdu'     },
+  { code: 'ur',       label: '🇮🇳 Urdu'     },
   { code: 'hinglish', label: '🇮🇳 Hinglish' },
 ];
 
@@ -210,6 +211,96 @@ function LegalNoticeGenerator() {
       console.error(err);
       toast.error('DOCX generation failed');
     }
+  };
+
+  // ── jsPDF download ───────────────────────
+  const downloadNoticePdf = () => {
+    if (!notice) return;
+    try {
+      const doc = new jsPDF({ format: 'a4', orientation: 'portrait', unit: 'mm' });
+      const pageWidth  = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 15;
+      const contentWidth = pageWidth - margin * 2;
+      let y = margin;
+
+      // ── Header
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text('Legal Notice', pageWidth / 2, y, { align: 'center' });
+      y += 10;
+
+      // Divider
+      doc.setDrawColor(180, 180, 180);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 7;
+
+      // ── Meta details
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      const date = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+      const metaLines = [
+        `Notice Type: ${form.notice_type}`,
+        `Date: ${date}`,
+        `From: ${form.sender_name}${form.sender_address ? `, ${form.sender_address.replace(/\n/g, ', ')}` : ''}`,
+        `To: ${form.recipient_name}${form.recipient_address ? `, ${form.recipient_address.replace(/\n/g, ', ')}` : ''}`,
+        ...(form.subject ? [`Subject: ${form.subject}`] : []),
+        `Compliance Deadline: ${form.deadline_days} day(s)`,
+      ];
+      metaLines.forEach((line) => {
+        const wrapped = doc.splitTextToSize(line, contentWidth);
+        wrapped.forEach((l: string) => {
+          if (y > pageHeight - margin) { doc.addPage(); y = margin; }
+          doc.text(l, margin, y);
+          y += 6;
+        });
+      });
+      y += 3;
+
+      // Second divider
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 7;
+
+      // ── Body
+      doc.setFontSize(11);
+      const bodyLines = doc.splitTextToSize(notice, contentWidth);
+      bodyLines.forEach((line: string) => {
+        if (y > pageHeight - margin) { doc.addPage(); y = margin; }
+        doc.text(line, margin, y);
+        y += 6;
+      });
+
+      doc.save(`Legal_Notice_${Date.now()}.pdf`);
+      toast.success('PDF downloaded!');
+    } catch (err) {
+      console.error(err);
+      toast.error('PDF generation failed');
+    }
+  };
+
+  // ── Print ────────────────────────────────
+  const printNotice = () => {
+    if (!notice) return;
+    const STYLE_ID = 'nyaya-print-style';
+    if (!document.getElementById(STYLE_ID)) {
+      const style = document.createElement('style');
+      style.id = STYLE_ID;
+      style.textContent = `
+        @media print {
+          body > *:not(#nyaya-print-root) { display: none !important; }
+          #nyaya-print-root { display: block !important; white-space: pre-wrap; font-family: monospace; font-size: 11pt; padding: 20mm; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    let printRoot = document.getElementById('nyaya-print-root');
+    if (!printRoot) {
+      printRoot = document.createElement('pre');
+      printRoot.id = 'nyaya-print-root';
+      document.body.appendChild(printRoot);
+    }
+    printRoot.textContent = notice;
+    window.print();
   };
 
   // ── Supabase save ────────────────────────
@@ -515,6 +606,8 @@ function LegalNoticeGenerator() {
                   <div className="flex flex-wrap justify-end gap-1">
                     <ActionBtn id="ln-copy-btn"  onClick={copy}              icon={copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}  label={copied ? 'Copied' : 'Copy'} />
                     <ActionBtn id="ln-pdf-btn"   onClick={handleDownloadPDF}  icon={<Download className="h-3.5 w-3.5" />}  label="PDF"  />
+                    <ActionBtn id="ln-jspdf-btn" onClick={downloadNoticePdf}  icon={<FileDown className="h-3.5 w-3.5" />} label="Download PDF" />
+                    <ActionBtn id="ln-print-btn" onClick={printNotice}        icon={<FileText className="h-3.5 w-3.5" />} label="Print" />
                     <ActionBtn id="ln-docx-btn"  onClick={handleDownloadDOCX} icon={<FileDown className="h-3.5 w-3.5" />}  label="DOCX" />
                     <ActionBtn id="ln-save-btn"  onClick={saveHistory}        disabled={saving} icon={saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} label="Save" />
                     <ActionBtn id="ln-regen-btn" onClick={generate}           disabled={generating} icon={<RotateCcw className="h-3.5 w-3.5" />} label="Regen" />

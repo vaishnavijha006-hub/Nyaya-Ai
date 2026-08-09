@@ -26,6 +26,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!mounted) return;
       setSession(data.session);
       setLoading(false);
+    }).catch((err) => {
+      console.warn('[Supabase Auth] Initialization notice:', err?.message || err);
+      if (mounted) setLoading(false);
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
@@ -39,17 +42,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = React.useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error ? error.message : null };
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      return { error: error ? error.message : null };
+    } catch (err: any) {
+      return { error: err?.message || 'Network error: Unable to reach authentication server. Please check your Supabase project status or internet connection.' };
+    }
   }, []);
 
   const signUp = React.useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password });
-    return { error: error ? error.message : null };
+    try {
+      const { error } = await supabase.auth.signUp({ email, password });
+      return { error: error ? error.message : null };
+    } catch (err: any) {
+      return { error: err?.message || 'Network error: Unable to reach authentication server. Please check your Supabase project status or internet connection.' };
+    }
   }, []);
 
   const signOut = React.useCallback(async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn('[Auth] Sign out error:', err);
+    }
   }, []);
 
   const value = React.useMemo<AuthContextValue>(

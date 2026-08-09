@@ -1,4 +1,5 @@
 'use client';
+import jsPDF from 'jspdf';
 
 import * as React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -30,7 +31,8 @@ const LANGUAGES = [
   { code: 'kn', label: '🇮🇳 Kannada' },
   { code: 'ml', label: '🇮🇳 Malayalam' },
   { code: 'pa', label: '🇮🇳 Punjabi' },
-  { code: 'ur', label: '🇵🇰 Urdu' },
+  { code: 'ur', label: '🇮🇳 Urdu' },
+  { code: 'hinglish', label: '🇮🇳 Hinglish' },
 ];
 
 const DEPARTMENTS = [
@@ -170,6 +172,69 @@ function RTIGenerator() {
     }
   };
 
+  const downloadRtiPdf = () => {
+    if (!application) return;
+    try {
+      const doc = new jsPDF({ format: 'a4', unit: 'mm' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 15;
+      const contentWidth = pageWidth - margin * 2;
+      let y = margin;
+
+      // Header
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text('RTI Application', pageWidth / 2, y, { align: 'center' });
+      y += 10;
+
+      // Divider
+      doc.setDrawColor(180, 180, 180);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 7;
+
+      // Meta details
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      const date = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+      const metaLines = [
+        `Date: ${date}`,
+        `Applicant: ${form.applicant_name}`,
+        `Department: ${form.department}`,
+        `Public Authority: ${form.public_authority}`,
+        ...(form.address ? [`Address: ${form.address}`] : []),
+        ...(form.contact ? [`Contact: ${form.contact}`] : []),
+        ...(form.email   ? [`Email: ${form.email}`]   : []),
+      ];
+      metaLines.forEach((line) => {
+        doc.text(line, margin, y);
+        y += 6;
+      });
+      y += 3;
+
+      // Second divider
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 7;
+
+      // Body
+      doc.setFontSize(11);
+      const bodyLines = doc.splitTextToSize(application, contentWidth);
+      bodyLines.forEach((line: string) => {
+        if (y > doc.internal.pageSize.getHeight() - margin) {
+          doc.addPage();
+          y = margin;
+        }
+        doc.text(line, margin, y);
+        y += 6;
+      });
+
+      doc.save(`RTI_Application_${Date.now()}.pdf`);
+      toast.success('PDF downloaded!');
+    } catch (err) {
+      console.error(err);
+      toast.error('PDF generation failed');
+    }
+  };
+
   const saveToSupabase = async () => {
     if (!application) return;
     setSaving(true);
@@ -183,9 +248,17 @@ function RTIGenerator() {
         application,
         language: responseLang,
       });
-      if (error) throw error;
-      toast.success('RTI saved to your history!');
-      loadHistory();
+      if (error) {
+        if (error.code === 'PGRST301' || error.message.includes('404') || error.message.includes('not found')) {
+          console.warn('[Supabase Notice] rti_history table does not exist in database migration yet.');
+          toast.error('RTI history saving requires running database migration in Supabase SQL editor.');
+        } else {
+          throw error;
+        }
+      } else {
+        toast.success('RTI saved to your history!');
+        loadHistory();
+      }
     } catch (err: any) {
       toast.error(err?.message || 'Failed to save RTI history');
     } finally {
@@ -197,13 +270,19 @@ function RTIGenerator() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('rti_history')
         .select('id, department, authority, application, language, created_at')
         .order('created_at', { ascending: false })
         .limit(10);
-      if (data) setHistory(data as RtiHistoryItem[]);
-    } catch { /* silent */ }
+      if (!error && data) {
+        setHistory(data as RtiHistoryItem[]);
+      } else if (error) {
+        console.warn('[Supabase Notice] rti_history notice:', error.message);
+      }
+    } catch (err) {
+      console.warn('[Supabase Notice] Error loading RTI history:', err);
+    }
   };
 
   React.useEffect(() => { loadHistory(); }, []);
@@ -433,6 +512,17 @@ function RTIGenerator() {
                     <Button id="rti-pdf-btn" size="sm" variant="ghost" onClick={downloadPDF} className="gap-1.5 rounded-lg h-8">
                       <Download className="h-3.5 w-3.5" />
                       PDF
+                    </Button>
+                    <Button
+                      id="rti-jspdf-btn"
+                      size="sm"
+                      variant="outline"
+                      onClick={downloadRtiPdf}
+                      disabled={!application}
+                      className="gap-1.5 rounded-lg h-8"
+                    >
+                      <FileDown className="h-3.5 w-3.5" />
+                      Download PDF
                     </Button>
                     <Button id="rti-docx-btn" size="sm" variant="ghost" onClick={downloadDOCX} className="gap-1.5 rounded-lg h-8">
                       <FileDown className="h-3.5 w-3.5" />

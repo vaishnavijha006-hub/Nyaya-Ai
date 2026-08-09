@@ -1,12 +1,33 @@
 'use client';
 
+import * as React from 'react';
 import { AppShell } from '@/components/nyaya/app-shell';
 import { VoicePanel } from '@/components/nyaya/voice-panel';
-import { Mic, Volume2 } from 'lucide-react';
+import { Mic, Volume2, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+
+type BackendStatus = 'checking' | 'online' | 'offline';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8000';
 
 export default function VoicePage() {
   const router = useRouter();
+  const [backendStatus, setBackendStatus] = React.useState<BackendStatus>('checking');
+
+  const checkBackend = React.useCallback(async () => {
+    setBackendStatus('checking');
+    try {
+      const res = await fetch(`${API_BASE}/voice/`, { method: 'GET' });
+      setBackendStatus(res.ok ? 'online' : 'offline');
+    } catch {
+      setBackendStatus('offline');
+    }
+  }, []);
+
+  React.useEffect(() => {
+    checkBackend();
+  }, [checkBackend]);
 
   const handleTranscribed = (text: string) => {
     // When STT completes, offer to send the text to the chat
@@ -42,6 +63,53 @@ export default function VoicePage() {
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground">
             Hindi · English · Multilingual
           </span>
+        </div>
+
+        {/* Backend Status card */}
+        <div
+          className={`mb-6 flex items-center justify-between gap-3 rounded-xl border p-3 ${
+            backendStatus === 'online'
+              ? 'border-emerald-500/30 bg-emerald-500/10'
+              : backendStatus === 'offline'
+              ? 'border-rose-500/30 bg-rose-500/10'
+              : 'border-border/60 bg-muted/10'
+          }`}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            {backendStatus === 'checking' ? (
+              <span className="flex h-2 w-2 rounded-full bg-muted-foreground/50 animate-pulse shrink-0" />
+            ) : backendStatus === 'online' ? (
+              <span className="flex h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+            ) : (
+              <span className="flex h-2 w-2 rounded-full bg-rose-500 shrink-0" />
+            )}
+            <span
+              className={`text-xs font-medium truncate ${
+                backendStatus === 'online'
+                  ? 'text-emerald-700 dark:text-emerald-400'
+                  : backendStatus === 'offline'
+                  ? 'text-rose-700 dark:text-rose-400'
+                  : 'text-muted-foreground'
+              }`}
+            >
+              {backendStatus === 'checking'
+                ? 'Checking voice backend…'
+                : backendStatus === 'online'
+                ? '✓ Voice backend online — STT & TTS ready'
+                : '✗ Backend offline — start the FastAPI server on port 8000'}
+            </span>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={checkBackend}
+            disabled={backendStatus === 'checking'}
+            className="h-7 shrink-0 gap-1 text-xs px-2"
+            aria-label="Retry backend check"
+          >
+            <RefreshCw className={`h-3 w-3 ${backendStatus === 'checking' ? 'animate-spin' : ''}`} />
+            Retry
+          </Button>
         </div>
 
         {/* Main panel */}

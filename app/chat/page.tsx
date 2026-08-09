@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, MessageSquare, Trash2, Send, Mic, Paperclip, Sparkles, Search, X,
-  Loader2, Square,
+  Loader2, Square, FileDown,
 } from 'lucide-react';
+import jsPDF from 'jspdf';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/nyaya/app-shell';
 import { AIResponseCard } from '@/components/nyaya/ai-response-card';
@@ -242,6 +243,75 @@ function ChatPanel({
     window.localStorage.setItem('nyaya-language', value);
   };
 
+  const downloadChatPdf = () => {
+    if (!messages || messages.length === 0) {
+      toast.error('No chat history to export.');
+      return;
+    }
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    const margin = 20;
+    const maxLineWidth = pageWidth - margin * 2;
+    let yOffset = 20;
+
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 41, 59);
+    doc.text('Nyaya AI - Chat History', margin, yOffset);
+    yOffset += 8;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Exported on ${new Date().toLocaleString()}`, margin, yOffset);
+    yOffset += 10;
+
+    doc.setDrawColor(226, 232, 240);
+    doc.line(margin, yOffset, pageWidth - margin, yOffset);
+    yOffset += 12;
+
+    messages.forEach((msg) => {
+      const isUser = msg.role === 'user';
+      const sender = isUser ? 'You' : 'Nyaya AI';
+
+      if (yOffset > pageHeight - 20) {
+        doc.addPage();
+        yOffset = 20;
+      }
+
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      if (isUser) {
+        doc.setTextColor(37, 99, 235);
+      } else {
+        doc.setTextColor(16, 185, 129);
+      }
+      doc.text(sender, margin, yOffset);
+      yOffset += 6;
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(30, 41, 59);
+
+      const lines = doc.splitTextToSize(msg.content, maxLineWidth);
+      lines.forEach((line: string) => {
+        if (yOffset > pageHeight - 20) {
+          doc.addPage();
+          yOffset = 20;
+        }
+        doc.text(line, margin, yOffset);
+        yOffset += 5;
+      });
+
+      yOffset += 8;
+    });
+
+    doc.save('nyaya-chat-history.pdf');
+    toast.success('Chat history downloaded as PDF');
+  };
+
   const [streamingQuestion, setStreamingQuestion] = React.useState('');
   const { state: streamState, start: startStream, reset: resetStream } = useStreamingChat({
     question: streamingQuestion,
@@ -401,6 +471,17 @@ function ChatPanel({
               ))}
             </SelectContent>
           </Select>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={downloadChatPdf}
+            disabled={messages.length === 0}
+            className="h-9 gap-1.5 rounded-xl text-xs font-medium"
+            title="Download PDF"
+          >
+            <FileDown className="h-4 w-4" />
+            <span className="hidden sm:inline">Download PDF</span>
+          </Button>
           <Button size="sm" variant="outline" onClick={onNew} className="md:hidden">
             <Plus className="h-4 w-4" />
           </Button>

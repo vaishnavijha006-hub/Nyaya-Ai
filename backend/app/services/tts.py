@@ -39,6 +39,38 @@ def load_piper_voice() -> Any:
         raise TTSError("Piper ONNX neural voice model could not be loaded.") from error
 
 
+def prepare_for_tts(text: str) -> str:
+    """Uses LLM to format/transliterate text for a Hindi neural TTS engine."""
+    from app.services.llm import get_groq_client, PRIMARY_MODEL
+    try:
+        client = get_groq_client()
+        prompt = (
+            "You are a text pre-processor for a Hindi Text-to-Speech (TTS) engine. "
+            "Your task is to take the given text and rewrite it into clean, phonetic Devanagari script (Hindi). "
+            "CRITICAL RULES:\n"
+            "1. Output ONLY the Devanagari text, nothing else.\n"
+            "2. Transliterate English words into Devanagari (e.g., 'Constitution' -> 'कॉन्स्टिट्यूशन').\n"
+            "3. Convert all digits/numbers into Hindi words (e.g., '21' -> 'इक्कीस', '2005' -> 'दो हज़ार पाँच').\n"
+            "4. Expand abbreviations (e.g., 'RTI' -> 'आर टी आई').\n"
+            "5. Remove special markdown characters (*, #, [, ]) but keep natural punctuation (, . ?).\n"
+        )
+        res = client.chat.completions.create(
+            model=PRIMARY_MODEL,
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": text},
+            ],
+            temperature=0.0,
+            max_tokens=1000,
+        )
+        cleaned = res.choices[0].message.content.strip()
+        logger.info(f"TTS prepared text: {cleaned}")
+        return cleaned if cleaned else text
+    except Exception as e:
+        logger.warning(f"TTS preparation failed: {e}")
+        return text
+
+
 def text_to_speech(text: str) -> Path:
     """
     Synthesize speech from text and save to a temporary WAV file.
@@ -47,7 +79,8 @@ def text_to_speech(text: str) -> Path:
     if not text or not text.strip():
         raise TTSError("Text field cannot be empty.")
 
-    clean_text = text.strip()
+    # Pre-process text to clean Devanagari for the Hindi TTS model
+    clean_text = prepare_for_tts(text.strip())
     GENERATED_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
     output_path = GENERATED_AUDIO_DIR / f"{uuid4()}.wav"
 

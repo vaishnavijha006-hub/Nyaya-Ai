@@ -74,7 +74,7 @@ export function AIResponseCard({ response }: { response: AIResponse }) {
     setLoadingAudio(true);
     let audioUrl: string | null = null;
     try {
-      const createdAudioUrl = URL.createObjectURL(await synthesizeSpeech(response.content));
+      const createdAudioUrl = URL.createObjectURL(await synthesizeSpeech(response.content, response.detected_language));
       audioUrl = createdAudioUrl;
       const audio = new Audio(createdAudioUrl);
       audioRef.current = audio;

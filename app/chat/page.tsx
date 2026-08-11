@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, MessageSquare, Trash2, Send, Mic, Paperclip, Sparkles, Search, X,
@@ -55,17 +55,27 @@ const LANGUAGE_OPTIONS: Array<{ value: string; label: string; flag: string }> = 
 export default function ChatPage() {
   return (
     <AppShell>
-      <ChatLayout />
+      <React.Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}>
+        <ChatLayout />
+      </React.Suspense>
     </AppShell>
   );
 }
 
 function ChatLayout() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { conversations, loading: convsLoading, reload } = useConversations();
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState('');
   const { messages, loading: msgsLoading, sendMessage, addUserMessage, saveStreamedAnswer } = useConversation(activeId);
+
+  React.useEffect(() => {
+    if (searchParams.get('new') === 'true') {
+      setActiveId(null);
+      router.replace('/chat');
+    }
+  }, [searchParams, router]);
 
   const filtered = React.useMemo(
     () => conversations.filter((c) => c.title.toLowerCase().includes(search.toLowerCase())),

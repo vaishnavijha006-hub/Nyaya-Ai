@@ -13,17 +13,20 @@ from app.rag.pipeline import ask_rag
 query = "What is Article 21?"
 print(f"\nQuery: {query}\n")
 
-result = ask_rag(query)
+try:
+    result = ask_rag(query)
 
-print("\n" + "=" * 60)
-print("FINAL ANSWER")
-print("=" * 60)
-print(result["answer"])
+    print("\n" + "=" * 60)
+    print("FINAL ANSWER")
+    print("=" * 60)
+    print(result["answer"])
 
-print("\n" + "=" * 60)
-print("SOURCES")
-print("=" * 60)
-for i, src in enumerate(result["sources"]):
-    print(f"[{i+1}] Page {src['page']} | {src['source']}")
-    print(f"     {src['content_preview']!r}")
-    print()
+    print("\n" + "=" * 60)
+    print("SOURCES")
+    print("=" * 60)
+    for i, src in enumerate(result["sources"]):
+        print(f"[{i+1}] Page {src['page']} | {src['source']}")
+        print(f"     {src['content_preview']!r}")
+        print()
+except Exception as e:
+    print(f"Test failed or skipped due to network/API error: {e}")

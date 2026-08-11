@@ -16,6 +16,8 @@ from app.api.speech import router as speech_router
 from app.api.tts import router as tts_router
 from app.api.voice import router as voice_router
 from app.api.admin import router as admin_router
+from app.api.pdf_upload import router as pdf_upload_router
+from app.api.contract import router as contract_router
 
 # Initialize Limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -53,6 +55,8 @@ app.include_router(speech_router)
 app.include_router(tts_router)
 app.include_router(voice_router)
 app.include_router(admin_router)
+app.include_router(pdf_upload_router)
+app.include_router(contract_router)
 
 
 @app.get("/")

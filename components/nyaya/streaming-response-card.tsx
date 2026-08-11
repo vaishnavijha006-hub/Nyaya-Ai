@@ -96,7 +96,7 @@ export function StreamingResponseCard({
     if (!streamedText) return;
     setSpeaking(true);
     try {
-      const blob = await synthesizeSpeech(streamedText);
+      const blob = await synthesizeSpeech(streamedText, detectedLanguage);
       if (audioUrlRef.current) {
         URL.revokeObjectURL(audioUrlRef.current);
       }

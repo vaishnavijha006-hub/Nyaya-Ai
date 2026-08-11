@@ -225,7 +225,11 @@ async def chat_stream(request: Request, body: ChatRequest):
         yield f"data: {json.dumps({'type': 'status', 'message': f'Reading {reading_label}...'})}\n\n"
         await asyncio.sleep(0)
 
-        yield f"data: {json.dumps({'type': 'status', 'message': 'Generating legal answer...'})}\n\n"
+        if lang != "en":
+            lang_name = LANGUAGE_NAME_MAP.get(lang, lang)
+            yield f"data: {json.dumps({'type': 'status', 'message': f'Generating and translating into {lang_name}...'})}\n\n"
+        else:
+            yield f"data: {json.dumps({'type': 'status', 'message': 'Generating legal answer...'})}\n\n"
         await asyncio.sleep(0)
 
         token_count = 0

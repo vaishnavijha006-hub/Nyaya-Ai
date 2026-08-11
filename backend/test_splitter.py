@@ -1,7 +1,7 @@
 from app.rag.loader import load_pdf
 from app.rag.splitter import split_documents
 
-docs = load_pdf("knowledge-base/constitution_of_india.pdf")
+docs = load_pdf("knowledge-base/acts/constitution_of_india.pdf")
 chunks = split_documents(docs)
 
 print(f"Original Pages: {len(docs)}")

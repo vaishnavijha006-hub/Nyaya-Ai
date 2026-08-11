@@ -29,6 +29,7 @@ import {
 import { toast } from 'sonner';
 import { MOCK_LAWYERS, CITIES, SPECIALTIES, type Lawyer } from '@/lib/mock-lawyers';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase-client';
 
 export default function LawyersPage() {
   const [cityFilter, setCityFilter] = React.useState<string>('all');
@@ -36,15 +37,53 @@ export default function LawyersPage() {
   const [search, setSearch] = React.useState('');
   const [selectedLawyer, setSelectedLawyer] = React.useState<Lawyer | null>(null);
 
+  const [lawyers, setLawyers] = React.useState<Lawyer[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    async function fetchLawyers() {
+      try {
+        const { data, error } = await supabase
+          .from('lawyers')
+          .select('*')
+          .order('rating', { ascending: false });
+
+        if (error || !data || data.length === 0) {
+          console.warn('Using mock lawyers fallback', error?.message);
+          setLawyers(MOCK_LAWYERS);
+        } else {
+          setLawyers(data.map((row: any) => ({
+            id: row.id,
+            name: row.name,
+            specialties: row.specialties || [],
+            languages: [], // Not in schema, fallback
+            experienceYears: row.experience_years,
+            location: row.location,
+            bio: row.bio,
+            avatarUrl: row.avatar_url,
+            verified: row.verified,
+            rating: row.rating,
+            casesWon: 0,
+          })));
+        }
+      } catch (err) {
+        setLawyers(MOCK_LAWYERS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchLawyers();
+  }, []);
+
   const filteredLawyers = React.useMemo(() => {
-    return MOCK_LAWYERS.filter((lawyer) => {
+    return lawyers.filter((lawyer) => {
       const matchesCity = cityFilter === 'all' || lawyer.location === cityFilter;
       const matchesSpecialty = specialtyFilter === 'all' || lawyer.specialties.includes(specialtyFilter);
       const matchesSearch = lawyer.name.toLowerCase().includes(search.toLowerCase()) || 
                             lawyer.specialties.some(s => s.toLowerCase().includes(search.toLowerCase()));
       return matchesCity && matchesSpecialty && matchesSearch;
     });
-  }, [cityFilter, specialtyFilter, search]);
+  }, [cityFilter, specialtyFilter, search, lawyers]);
 
   return (
     <AppShell>

@@ -6,7 +6,7 @@
 ![Groq Llama 3.3](https://img.shields.io/badge/AI-Groq%20Llama%203.3%2070B-orange)
 ![Hybrid RAG](https://img.shields.io/badge/Search-BM25%20%2B%20ChromaDB%20RRF-purple)
 
-> **Nyaya AI** is an production-grade AI platform designed to make Indian law simple, accessible, and actionable for citizens, students, legal professionals, UPSC aspirants, and consumers.
+> **Nyaya AI** is a production-grade AI platform designed to make Indian law simple, accessible, and actionable for citizens, students, legal professionals, UPSC aspirants, and consumers.
 
 ---
 
@@ -19,11 +19,16 @@
   - **FIR Drafting Assistant**: Step-by-step form to perfectly draft formal police complaints under BNS/CrPC.
   - **RTI Application Generator**: Generates formatted Right to Information applications ready for submission to PIOs.
   - **Legal Notice Generator**: Generates formal legal notices formatted for Indian legal standards.
+  - **Contract Generator**: Draft and generate common legal contracts and agreements.
   - *All generated documents can be instantly exported to PDF or DOCX.*
-- 📁 **Session-Scoped PDF RAG**: Upload legal PDFs and query document contents dynamically with custom vector collections.
+- 🔖 **Citation Cards**: Every answer includes the exact applicable law, section, and citations for full transparency.
+- 📁 **Session-Scoped PDF RAG & Workspace**: Upload legal PDFs, query document contents dynamically, and manage your legal research in a personalized workspace.
 - 🤝 **Lawyer Network Directory**: A dedicated platform to find, filter, and seamlessly contact verified advocates by sharing AI chat context.
+- ⚖️ **Court Case Tracking**: Track the status and history of ongoing court cases across various Indian courts.
+- 👁️ **Document OCR**: Extract text and legal information seamlessly from scanned legal documents and images.
 - 🗣️ **Multilingual Support**: Supports 12+ Indian languages (Hindi, Marathi, Tamil, etc.) for Chat, RTI, and Legal Notices.
 - 🎙️ **Offline Voice AI**: Transcribes speech via Whisper STT and synthesizes neural Devanagari audio via Piper ONNX.
+- 🔐 **Authentication**: Secure user authentication and profiles to save your chat history, documents, and preferences.
 - 📈 **Real-Time Analytics**: Built on Supabase Realtime to track research sessions and chat queries.
 - ⚡ **Server-Sent Events (SSE)**: Real-time token streaming with live status updates and structured legal citations.
 
@@ -37,7 +42,7 @@
 - **State & Streaming**: Server-Sent Events (SSE), Custom Hooks (`useStreamingChat`, `useConversations`)
 
 ### Backend & AI Architecture
-- **Framework**: FastAPI (Python 3.14)
+- **Framework**: FastAPI (Python 3.10+)
 - **LLM Provider**: Groq LPU API (`llama-3.3-70b-versatile`)
 - **Vector DB & Retrieval**: ChromaDB, BM25Okapi, BAAI/bge-small-en-v1.5
 - **Database & Auth**: Supabase, PostgreSQL

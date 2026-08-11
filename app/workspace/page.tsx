@@ -97,7 +97,15 @@ export default function WorkspacePage() {
       };
       if (user?.id) notesPayload.user_id = user.id;
 
-      const { error: noteErr } = await supabase.from('research_notes').upsert(notesPayload);
+      const { data: existing } = await supabase.from('research_notes').select('id').eq('session_id', selectedSession.id).maybeSingle();
+      let noteErr;
+      if (existing) {
+        const { error } = await supabase.from('research_notes').update({ notes: data.notes }).eq('id', existing.id);
+        noteErr = error;
+      } else {
+        const { error } = await supabase.from('research_notes').insert(notesPayload);
+        noteErr = error;
+      }
       if (noteErr) console.warn('[Supabase Notice] Failed to save research_notes:', noteErr.message);
 
       const eventPayload: Record<string, any> = {
@@ -140,14 +148,33 @@ export default function WorkspacePage() {
     setNoteSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      // Create a dummy session first to satisfy the session_id NOT NULL constraint
+      const sessionPayload: Record<string, any> = {
+        query: noteTitle.trim(),
+        answer: "Manual Workspace Note",
+        sources: [],
+        articles_retrieved: []
+      };
+      if (user?.id) sessionPayload.user_id = user.id;
+
+      const { data: sessionData, error: sessionErr } = await supabase
+        .from('research_sessions')
+        .insert(sessionPayload)
+        .select('id')
+        .single();
+      
+      if (sessionErr) throw sessionErr;
+
       const payload: Record<string, any> = {
-        title: noteTitle.trim(),
+        session_id: sessionData.id,
         notes: noteContent.trim(),
       };
       if (user?.id) payload.user_id = user.id;
 
       const { error } = await supabase.from('research_notes').insert(payload);
       if (error) throw error;
+      
+      refresh?.();
 
       toast.success('Note saved to workspace!');
       setNoteTitle('');
@@ -187,7 +214,7 @@ export default function WorkspacePage() {
     try {
       const form = new FormData();
       form.append('file', uploadFile);
-      const res = await fetch('http://127.0.0.1:8000/pdf-upload/', {
+      const res = await fetch('http://127.0.0.1:8000/pdf/upload', {
         method: 'POST',
         body: form,
       });
@@ -196,6 +223,18 @@ export default function WorkspacePage() {
       setUploadProgress('success');
       setUploadSessionId(data.session_id ?? null);
       toast.success('Document uploaded & analyzed!');
+
+      // Store the upload record in research_sessions so it appears in the workspace
+      const { data: { user } } = await supabase.auth.getUser();
+      const sessionPayload: Record<string, any> = {
+        query: `Uploaded Document: ${uploadFile.name}`,
+        answer: `Document successfully analyzed and indexed for 30 minutes.\n\nSession ID: ${data.session_id}`,
+        sources: [],
+        articles_retrieved: []
+      };
+      if (user?.id) sessionPayload.user_id = user.id;
+      await supabase.from('research_sessions').insert(sessionPayload);
+
       refresh?.();
     } catch (err: any) {
       console.error(err);
@@ -354,7 +393,7 @@ export default function WorkspacePage() {
                 </p>
               </div>
               <Card className="rounded-2xl border-border/60 p-5">
-                <NoteUploadPanel />
+                {NoteUploadPanel({})}
               </Card>
             </div>
           </div>
@@ -543,7 +582,7 @@ export default function WorkspacePage() {
                 {/* Panel */}
                 <div className="fixed bottom-0 left-0 right-0 z-50 md:right-6 md:left-auto md:bottom-24 md:w-[420px] animate-in slide-in-from-bottom-4 duration-300">
                   <Card className="rounded-t-2xl md:rounded-2xl border-border/60 shadow-xl p-5">
-                    <NoteUploadPanel onClose={() => setShowNewNote(false)} />
+                    {NoteUploadPanel({ onClose: () => setShowNewNote(false) })}
                   </Card>
                 </div>
               </>

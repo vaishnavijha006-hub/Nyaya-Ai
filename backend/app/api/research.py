@@ -11,6 +11,7 @@ router = APIRouter(prefix="/research", tags=["research"])
 class NotesRequest(BaseModel):
     answer: str
     sources: List[Dict[str, Any]]
+    language: Optional[str] = "en"
 
 class NotesResponse(BaseModel):
     notes: str
@@ -77,7 +78,13 @@ async def generate_notes(request: NotesRequest):
         "2. Detail the significance of each referenced article explicitly.\n"
         "3. Highlight key implications or legal boundaries mentioned in the text.\n"
         "4. Organize with clean Markdown headings.\n"
-        "5. Respond in the same language as the legal answer if it is Hindi/Hinglish/Telugu/Tamil/Bengali.\n\n"
+    )
+
+    from app.rag.pipeline import LANGUAGE_NAME_MAP
+    lang_name = LANGUAGE_NAME_MAP.get(request.language, "English")
+    prompt += f"5. You MUST write your entire response completely in {lang_name}. Do not use any other language.\n\n"
+    
+    prompt += (
         f"--- LEGAL ANSWER ---\n{request.answer}\n\n"
         f"--- CONSTITUTIONAL SOURCES ---\n{sources_text}"
     )

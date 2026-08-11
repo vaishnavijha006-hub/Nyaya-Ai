@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Logo } from '@/components/nyaya/logo';
+import { useAuth } from '@/components/nyaya/auth-provider';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -22,6 +23,7 @@ export function SiteHeader() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
   const pathname = usePathname();
+  const { user, loading, signOut } = useAuth();
 
   React.useEffect(() => setMounted(true), []);
 
@@ -64,11 +66,17 @@ export function SiteHeader() {
             className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
             aria-label="Toggle theme"
           >
-            {mounted && theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {mounted && theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/auth">Sign in</Link>
-          </Button>
+          {!user ? (
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/auth">Sign in</Link>
+            </Button>
+          ) : (
+            <Button variant="ghost" size="sm" onClick={() => signOut()}>
+              Sign out
+            </Button>
+          )}
           <Button asChild size="sm" className="glow">
             <Link href="/chat">Launch App</Link>
           </Button>
@@ -98,11 +106,17 @@ export function SiteHeader() {
                 </Link>
               ))}
               <div className="mt-2 flex gap-2">
-                <Button asChild variant="outline" size="sm" className="flex-1">
-                  <Link href="/auth">Sign in</Link>
-                </Button>
+                {!user ? (
+                  <Button asChild variant="outline" size="sm" className="flex-1">
+                    <Link href="/auth">Sign in</Link>
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={() => signOut()} className="flex-1">
+                    Sign out
+                  </Button>
+                )}
                 <Button asChild size="sm" className="flex-1">
-                  <Link href="/auth">Launch App</Link>
+                  <Link href="/chat">Launch App</Link>
                 </Button>
               </div>
             </div>

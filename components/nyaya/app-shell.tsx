@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageSquare, FileText, ScrollText, Settings, Menu, X, Plus, LogOut,
-  FolderOpen, BarChart3, Mic, ShieldAlert, Briefcase,
+  FolderOpen, BarChart3, Mic, ShieldAlert, Briefcase, PenTool,
 } from 'lucide-react';
 import { Logo } from '@/components/nyaya/logo';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ const nav = [
   { href: '/rti', label: 'RTI Generator', icon: FileText },
   { href: '/legal-notice', label: 'Legal Notice', icon: ScrollText },
   { href: '/fir', label: 'FIR Drafter', icon: ShieldAlert },
+  { href: '/contracts', label: 'Contract Generator', icon: PenTool },
   { href: '/lawyers', label: 'Lawyers Network', icon: Briefcase },
   { href: '/voice', label: 'Voice Features', icon: Mic },
   { href: '/settings', label: 'Settings', icon: Settings },
@@ -72,7 +73,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Menu className="h-5 w-5" />
           </button>
           <Logo showWordmark={false} />
-          <Link href="/chat">
+          <Link href="/chat?new=true">
             <Button size="icon" variant="ghost" className="h-9 w-9">
               <Plus className="h-4 w-4" />
             </Button>
@@ -102,7 +103,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
       <div className="px-3">
         <Button asChild className="w-full justify-start gap-2 rounded-xl">
-          <Link href="/chat" onClick={onNavigate}>
+          <Link href="/chat?new=true" onClick={onNavigate}>
             <Plus className="h-4 w-4" />
             New conversation
           </Link>

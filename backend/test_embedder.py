@@ -13,7 +13,7 @@ from app.rag.embedder import create_vector_db
 
 # Load PDF
 print("[1/3] Loading PDF...")
-docs = load_pdf("knowledge-base/constitution_of_india.pdf")
+docs = load_pdf("knowledge-base/acts/constitution_of_india.pdf")
 print(f"      Loaded {len(docs)} pages")
 print(f"      First page preview: {docs[0].page_content[:200]!r}\n")
 

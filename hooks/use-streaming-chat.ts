@@ -105,7 +105,10 @@ export function useStreamingChat({ question, audience = 'default', language = 'a
       abortRef.current = controller;
 
       // Reset state before new stream
-      setState(INITIAL_STATE);
+      setState({
+        ...INITIAL_STATE,
+        detectedLanguage: lang === 'auto' ? 'en' : lang,
+      });
 
       try {
         const response = await fetch(`${API_URL}/chat/stream`, {

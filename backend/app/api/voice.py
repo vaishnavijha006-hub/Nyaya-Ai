@@ -34,6 +34,7 @@ class TranscribeResponse(BaseModel):
 
 class SpeakRequest(BaseModel):
     text: str = Field(min_length=1, max_length=10_000)
+    language: Optional[str] = Field(default="hi")
 
 
 def _cleanup_file(file_path: Path) -> None:
@@ -118,7 +119,7 @@ async def speak_text_endpoint(
         )
 
     try:
-        audio_path = await run_in_threadpool(text_to_speech, request.text)
+        audio_path = await run_in_threadpool(text_to_speech, request.text, request.language)
     except (TTSError, SpeechProcessingError) as error:
         logger.warning("TTS failed: %s", error)
         raise HTTPException(

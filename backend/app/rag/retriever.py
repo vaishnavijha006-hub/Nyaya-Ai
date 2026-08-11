@@ -37,6 +37,7 @@ _ABS_DB_PATH = os.path.join(_BACKEND_DIR, DB_PATH)
 _MANIFEST_PATH = os.path.join(_BACKEND_DIR, "knowledge-base", "manifest.json")
 
 JUDGMENTS_COLLECTION_NAME = "nyaya_judgments"
+LIVE_JUDGMENTS_COLLECTION_NAME = "live_judgments"
 
 _HINDI_LEGAL_MAP = {
     r'\bअनुच्छेद\b': 'Article',
@@ -342,12 +343,23 @@ def retrieve(
 
     results_acts: List[Document] = []
     results_judgments: List[Document] = []
+    results_live: List[Document] = []
 
     search_acts = not target_judgment and (not has_judgment_kw or has_act_kw)
     search_judgments = bool(target_judgment or has_judgment_kw or not has_act_kw)
+    search_live = True # Always search live updates for now
+
+    # Warm up ChromaDB instances sequentially on the main thread
+    # to avoid race conditions with RustBindings in concurrent threads.
+    if search_acts:
+        _get_db(COLLECTION_NAME)
+    if search_judgments:
+        _get_db(JUDGMENTS_COLLECTION_NAME)
+    if search_live:
+        _get_db(LIVE_JUDGMENTS_COLLECTION_NAME)
 
     # Parallel retrieval execution for low latency (<500ms)
-    with ThreadPoolExecutor(max_workers=2) as executor:
+    with ThreadPoolExecutor(max_workers=3) as executor:
         future_acts = executor.submit(
             _single_collection_retrieve, query, COLLECTION_NAME, extracted_meta, retrieval_query, k
         ) if search_acts else None
@@ -356,15 +368,26 @@ def retrieve(
             _single_collection_retrieve, query, JUDGMENTS_COLLECTION_NAME, extracted_meta, retrieval_query, k
         ) if search_judgments else None
 
+        future_live = executor.submit(
+            _single_collection_retrieve, query, LIVE_JUDGMENTS_COLLECTION_NAME, extracted_meta, retrieval_query, k
+        ) if search_live else None
+
         if future_acts:
             results_acts = future_acts.result()
         if future_judgments:
             results_judgments = future_judgments.result()
+        if future_live:
+            results_live = future_live.result()
 
-    if results_acts and results_judgments:
-        final_results = reciprocal_rank_fusion(results_acts, results_judgments, classification, top_k=k)
-    elif results_judgments:
-        final_results = results_judgments[:k]
+    # Combine judgments and live judgments
+    combined_judgments = results_judgments + results_live
+
+    if results_acts and combined_judgments:
+        final_results = reciprocal_rank_fusion(results_acts, combined_judgments, classification, top_k=k)
+    elif combined_judgments:
+        # Re-sort if only judgments
+        combined_judgments.sort(key=lambda d: d.metadata.get("confidence", 0.0), reverse=True)
+        final_results = combined_judgments[:k]
     else:
         final_results = results_acts[:k]
 

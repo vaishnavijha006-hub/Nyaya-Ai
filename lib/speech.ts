@@ -29,11 +29,11 @@ export async function transcribeAudio(audio: Blob): Promise<string> {
   return payload.transcript;
 }
 
-export async function synthesizeSpeech(text: string): Promise<Blob> {
+export async function synthesizeSpeech(text: string, language?: string): Promise<Blob> {
   const response = await fetch(`${API_URL}/voice/speak`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, language }),
   });
   if (!response.ok) throw new Error(await getErrorMessage(response));
 

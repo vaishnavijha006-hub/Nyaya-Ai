@@ -18,7 +18,7 @@ export default function VoicePage() {
   const checkBackend = React.useCallback(async () => {
     setBackendStatus('checking');
     try {
-      const res = await fetch(`${API_BASE}/voice/`, { method: 'GET' });
+      const res = await fetch(`${API_BASE}/health`, { method: 'GET' });
       setBackendStatus(res.ok ? 'online' : 'offline');
     } catch {
       setBackendStatus('offline');

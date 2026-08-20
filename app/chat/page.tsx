@@ -12,7 +12,13 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/nyaya/app-shell';
 import { AIResponseCard } from '@/components/nyaya/ai-response-card';
 import { StreamingResponseCard } from '@/components/nyaya/streaming-response-card';
+import { CaseUnderstanding } from '@/components/nyaya/case-understanding';
+import { SmartQuestion } from '@/components/nyaya/smart-question';
+import { EmergencyMode } from '@/components/nyaya/emergency-mode';
 import { EmptyState } from '@/components/nyaya/empty-state';
+import { LegalSourceCard } from '@/components/nyaya/legal-source-card';
+import { LegalAnalysis } from '@/components/nyaya/legal-analysis';
+import { MemoryConflict } from '@/components/nyaya/memory-conflict';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -323,7 +329,7 @@ function ChatPanel({
   };
 
   const [streamingQuestion, setStreamingQuestion] = React.useState('');
-  const { state: streamState, start: startStream, reset: resetStream } = useStreamingChat({
+  const { state: streamState, start: startStream, reset: resetStream, clearEmergency } = useStreamingChat({
     question: streamingQuestion,
     audience,
     language,
@@ -372,6 +378,20 @@ function ChatPanel({
     startStream(trimmed, audience, language);
     setInput('');
     setFiles([]);
+  };
+
+  const submitAnswer = async (answer: string) => {
+    const trimmed = answer.trim();
+    if (!trimmed) return;
+
+    if (!hasActive) {
+      await onNew();
+    }
+
+    onAddUserMessage(trimmed);
+    resetStream();
+    setStreamingQuestion(trimmed);
+    startStream(trimmed, audience, language);
   };
 
   const toggleVoice = async (): Promise<void> => {
@@ -498,233 +518,274 @@ function ChatPanel({
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
-          {loading ? (
-            <div className="space-y-4">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="space-y-2">
-                  <Skeleton className="h-4 w-1/3" />
-                  <Skeleton className="h-16 w-full rounded-2xl" />
-                </div>
-              ))}
-            </div>
-          ) : isEmpty && !isStreamingActive ? (
-            <EmptyState
-              icon={Sparkles}
-              title="Ask Nyaya anything about the law"
-              description="Get cited answers, draft documents, or understand your rights. Try one of these prompts to begin."
-              action={
-                <div className="grid w-full max-w-xl gap-2 sm:grid-cols-2">
-                  {suggestedPrompts.slice(0, 4).map((p) => (
-                    <button
-                      key={p}
-                      onClick={async () => {
-                        if (!hasActive) await onNew();
-                        onAddUserMessage(p);
-                        resetStream();
-                        setStreamingQuestion(p);
-                        startStream(p, audience, language);
-                      }}
-                      className="glass rounded-xl px-3.5 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary"
-                    >
-                      {p}
-                    </button>
+      {streamState.isEmergency ? (
+        <div className="flex-1 overflow-hidden p-4 sm:p-6">
+          <EmergencyMode onSafe={clearEmergency} />
+        </div>
+      ) : (
+        <>
+          <div ref={scrollRef} className="flex-1 overflow-y-auto">
+            <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
+              {loading ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="space-y-2">
+                      <Skeleton className="h-4 w-1/3" />
+                      <Skeleton className="h-16 w-full rounded-2xl" />
+                    </div>
                   ))}
                 </div>
-              }
-            />
-          ) : isEmpty && isStreamingActive ? (
-            /* First message in a new conversation — show streaming card immediately */
-            <div className="space-y-5">
-              <div className="flex justify-end">
-                <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-[15px] leading-relaxed text-primary-foreground">
-                  {streamingQuestion}
-                </div>
-              </div>
-              <StreamingResponseCard
-                streamedText={streamState.streamedText}
-                statusMessage={streamState.statusMessage}
-                isStreaming={streamState.isStreaming}
-                isDone={streamState.isDone}
-                sourceCitations={streamState.sourceCitations}
-                error={streamState.error}
-                detectedLanguage={streamState.detectedLanguage}
-              />
-            </div>
-          ) : (
-            <div className="space-y-5">
-              <AnimatePresence initial={false}>
-                {messages.map((m) =>
-                  m.role === 'user' ? (
-                    <motion.div
-                      key={m.id}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="flex justify-end"
-                    >
-                      <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-[15px] leading-relaxed text-primary-foreground">
-                        {m.content}
-                      </div>
-                    </motion.div>
-                  ) : m.pending ? null : (
-                    <AIResponseCard
-                      key={m.id}
-                      response={{
-                        id: m.id,
-                        content: m.content,
-                        citations: m.citations,
-                        sourceCitations: m.sourceCitations,
-                        detected_language: m.detected_language,
-                      }}
-                    />
-                  )
-                )}
-              </AnimatePresence>
-
-              {isStreamingActive && (
-                <StreamingResponseCard
-                  streamedText={streamState.streamedText}
-                  statusMessage={streamState.statusMessage}
-                  isStreaming={streamState.isStreaming}
-                  isDone={streamState.isDone}
-                  sourceCitations={streamState.sourceCitations}
-                  error={streamState.error}
-                  detectedLanguage={streamState.detectedLanguage}
+              ) : isEmpty && !isStreamingActive ? (
+                <EmptyState
+                  icon={Sparkles}
+                  title="Ask Nyaya anything about the law"
+                  description="Get cited answers, draft documents, or understand your rights. Try one of these prompts to begin."
+                  action={
+                    <div className="grid w-full max-w-xl gap-2 sm:grid-cols-2">
+                      {suggestedPrompts.slice(0, 4).map((p) => (
+                        <button
+                          key={p}
+                          onClick={async () => {
+                            if (!hasActive) await onNew();
+                            onAddUserMessage(p);
+                            resetStream();
+                            setStreamingQuestion(p);
+                            startStream(p, audience, language);
+                          }}
+                          className="glass rounded-xl px-3.5 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  }
                 />
+              ) : isEmpty && isStreamingActive ? (
+                /* First message in a new conversation — show streaming card immediately */
+                <div className="space-y-5">
+                  <div className="flex justify-end">
+                    <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-[15px] leading-relaxed text-primary-foreground">
+                      {streamingQuestion}
+                    </div>
+                  </div>
+                  <StreamingResponseCard
+                    streamedText={streamState.streamedText}
+                    statusMessage={streamState.statusMessage}
+                    isStreaming={streamState.isStreaming}
+                    isDone={streamState.isDone}
+                    sourceCitations={streamState.sourceCitations}
+                    error={streamState.error}
+                    detectedLanguage={streamState.detectedLanguage}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  <AnimatePresence initial={false}>
+                    {messages.map((m) =>
+                      m.role === 'user' ? (
+                        <motion.div
+                          key={m.id}
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="flex justify-end"
+                        >
+                          <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-[15px] leading-relaxed text-primary-foreground">
+                            {m.content}
+                          </div>
+                        </motion.div>
+                      ) : m.pending ? null : (
+                        <AIResponseCard
+                          key={m.id}
+                          response={{
+                            id: m.id,
+                            content: m.content,
+                            citations: m.citations,
+                            sourceCitations: m.sourceCitations,
+                            detected_language: m.detected_language,
+                          }}
+                        />
+                      )
+                    )}
+                  </AnimatePresence>
+
+                  {isStreamingActive && (
+                    <div className="space-y-4">
+                      {streamState.memoryConflict && (
+                        <MemoryConflict 
+                          conflict={streamState.memoryConflict} 
+                          onResolve={(id, action) => {
+                            submitAnswer(`Conflict resolved: ${action}`);
+                          }} 
+                        />
+                      )}
+                      {streamState.caseClassification && (
+                        <CaseUnderstanding data={streamState.caseClassification} />
+                      )}
+                      {streamState.legalAnalysis && (
+                        <LegalAnalysis data={streamState.legalAnalysis} />
+                      )}
+                      {streamState.legalSources && streamState.legalSources.length > 0 && (
+                        <div className="space-y-3">
+                          {streamState.legalSources.map((source, idx) => (
+                            <LegalSourceCard key={idx} source={source} />
+                          ))}
+                        </div>
+                      )}
+                      <StreamingResponseCard
+                        streamedText={streamState.streamedText}
+                        statusMessage={streamState.statusMessage}
+                        isStreaming={streamState.isStreaming}
+                        isDone={streamState.isDone}
+                        sourceCitations={streamState.sourceCitations}
+                        error={streamState.error}
+                        detectedLanguage={streamState.detectedLanguage}
+                      />
+                      {streamState.followUpQuestions?.map((q: any, i: number) => (
+                        <SmartQuestion
+                          key={i}
+                          questionId={`q-${i}`}
+                          question={q.question || q.text || (typeof q === 'string' ? q : 'Follow up')}
+                          type={q.type || 'text'}
+                          options={q.options}
+                          onSubmit={submitAnswer}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Voice status banner — appears when recording or transcribing */}
-      {(listening || transcribing) && (
-        <div
-          className={cn(
-            'flex items-center justify-between border-t px-4 py-2 text-sm font-medium sm:px-6',
-            listening
-              ? 'border-rose-500/30 bg-rose-500/10 text-rose-500'
-              : 'border-primary/30 bg-primary/10 text-primary'
-          )}
-        >
-          <span className="flex items-center gap-2">
-            {listening ? (
-              <>
-                <span className="relative flex h-3 w-3">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-500 opacity-75" />
-                  <span className="relative inline-flex h-3 w-3 rounded-full bg-rose-500" />
-                </span>
-                Recording… click the mic to stop
-              </>
-            ) : (
-              <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Transcribing with Whisper…
-              </>
-            )}
-          </span>
-          {listening && (
-            <button
-              onClick={() => mediaRecorderRef.current?.stop()}
-              className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-2.5 py-1 text-xs font-semibold text-rose-500 hover:bg-rose-500/20 transition-colors"
-            >
-              Stop
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Composer */}
-      <div className="border-t border-border/60 bg-background/60 p-4 backdrop-blur-sm sm:px-6">
-        <div className="mx-auto w-full max-w-3xl">
-          {files.length > 0 && (
-            <div className="mb-2 flex flex-wrap gap-2">
-              {files.map((f, i) => (
-                <span key={i} className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1 text-xs">
-                  <Paperclip className="h-3 w-3" />
-                  {f}
-                  <button onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))} aria-label="Remove file">
-                    <X className="h-3 w-3 text-muted-foreground" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-          <div className="glass-strong flex items-end gap-2 rounded-2xl p-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              className="hidden"
-              onChange={onFileChange}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
-              aria-label="Attach files"
-            >
-              <Paperclip className="h-5 w-5" />
-            </button>
-
-            {/* Mic button — rich states: idle / recording / transcribing */}
-            <div className="relative">
-              {/* Pulsing ring when recording */}
-              {listening && (
-                <span className="absolute -inset-1.5 animate-ping rounded-full bg-rose-500/30" />
-              )}
-              <button
-                onClick={toggleVoice}
-                disabled={transcribing}
-                title={listening ? 'Stop recording' : transcribing ? 'Transcribing…' : 'Record voice input (Speech-to-Text)'}
-                className={cn(
-                  'relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200',
-                  listening
-                    ? 'bg-rose-500 text-white shadow-md shadow-rose-500/40'
-                    : transcribing
-                    ? 'cursor-not-allowed bg-primary/20 text-primary'
-                    : 'text-muted-foreground hover:bg-accent/10 hover:text-foreground'
-                )}
-                aria-label={listening ? 'Stop voice recording' : transcribing ? 'Transcribing…' : 'Record voice input'}
-              >
-                {transcribing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : listening ? (
-                  <Square className="h-4 w-4 fill-current" />
-                ) : (
-                  <Mic className="h-5 w-5" />
-                )}
-              </button>
-            </div>
-
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  submit();
-                }
-              }}
-              rows={1}
-              placeholder={transcribing ? 'Transcribing your voice…' : 'Ask about your legal rights, draft a document…'}
-              className="max-h-32 flex-1 resize-none bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-muted-foreground"
-            />
-            <Button
-              onClick={submit}
-              size="icon"
-              className="h-10 w-10 shrink-0 rounded-xl"
-              disabled={!input.trim()}
-              aria-label="Send message"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
           </div>
-          <p className="mt-2 text-center text-[11px] text-muted-foreground">
-            Nyaya AI provides legal information, not legal advice. Always verify with a qualified advocate.
-          </p>
-        </div>
-      </div>
+
+          {/* Voice status banner — appears when recording or transcribing */}
+          {(listening || transcribing) && (
+            <div
+              className={cn(
+                'flex items-center justify-between border-t px-4 py-2 text-sm font-medium sm:px-6',
+                listening
+                  ? 'border-rose-500/30 bg-rose-500/10 text-rose-500'
+                  : 'border-primary/30 bg-primary/10 text-primary'
+              )}
+            >
+              <span className="flex items-center gap-2">
+                {listening ? (
+                  <>
+                    <span className="relative flex h-3 w-3">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-500 opacity-75" />
+                      <span className="relative inline-flex h-3 w-3 rounded-full bg-rose-500" />
+                    </span>
+                    Recording… click the mic to stop
+                  </>
+                ) : (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Transcribing with Whisper…
+                  </>
+                )}
+              </span>
+              {listening && (
+                <button
+                  onClick={() => mediaRecorderRef.current?.stop()}
+                  className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-2.5 py-1 text-xs font-semibold text-rose-500 hover:bg-rose-500/20 transition-colors"
+                >
+                  Stop
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Composer */}
+          <div className="border-t border-border/60 bg-background/60 p-4 backdrop-blur-sm sm:px-6">
+            <div className="mx-auto w-full max-w-3xl">
+              {files.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-2">
+                  {files.map((f, i) => (
+                    <span key={i} className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1 text-xs">
+                      <Paperclip className="h-3 w-3" />
+                      {f}
+                      <button onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))} aria-label="Remove file">
+                        <X className="h-3 w-3 text-muted-foreground" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="glass-strong flex items-end gap-2 rounded-2xl p-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={onFileChange}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+                  aria-label="Attach files"
+                >
+                  <Paperclip className="h-5 w-5" />
+                </button>
+
+                {/* Mic button — rich states: idle / recording / transcribing */}
+                <div className="relative">
+                  {/* Pulsing ring when recording */}
+                  {listening && (
+                    <span className="absolute -inset-1.5 animate-ping rounded-full bg-rose-500/30" />
+                  )}
+                  <button
+                    onClick={toggleVoice}
+                    disabled={transcribing}
+                    title={listening ? 'Stop recording' : transcribing ? 'Transcribing…' : 'Record voice input (Speech-to-Text)'}
+                    className={cn(
+                      'relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200',
+                      listening
+                        ? 'bg-rose-500 text-white shadow-md shadow-rose-500/40'
+                        : transcribing
+                        ? 'cursor-not-allowed bg-primary/20 text-primary'
+                        : 'text-muted-foreground hover:bg-accent/10 hover:text-foreground'
+                    )}
+                    aria-label={listening ? 'Stop voice recording' : transcribing ? 'Transcribing…' : 'Record voice input'}
+                  >
+                    {transcribing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : listening ? (
+                      <Square className="h-4 w-4 fill-current" />
+                    ) : (
+                      <Mic className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      submit();
+                    }
+                  }}
+                  rows={1}
+                  placeholder={transcribing ? 'Transcribing your voice…' : 'Ask about your legal rights, draft a document…'}
+                  className="max-h-32 flex-1 resize-none bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-muted-foreground"
+                />
+                <Button
+                  onClick={submit}
+                  size="icon"
+                  className="h-10 w-10 shrink-0 rounded-xl"
+                  disabled={!input.trim()}
+                  aria-label="Send message"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="mt-2 text-center text-[11px] text-muted-foreground">
+                Nyaya AI provides legal information, not legal advice. Always verify with a qualified advocate.
+              </p>
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 }

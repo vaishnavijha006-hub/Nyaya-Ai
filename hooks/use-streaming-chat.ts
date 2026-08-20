@@ -43,6 +43,130 @@ export interface StreamState {
   error: string | null;
   /** Detected response language code */
   detectedLanguage: string;
+  /** True if backend flags an emergency */
+  isEmergency: boolean;
+  /** Case understanding structured data */
+  caseClassification: any | null;
+  /** Follow-up questions array */
+  followUpQuestions: any[];
+  /** Flag for legal retrieval started */
+  legalRetrievalStarted: boolean;
+  /** Array of found legal sources */
+  legalSources: any[];
+  /** Legal analysis data */
+  legalAnalysis: any | null;
+  /** Case timeline events */
+  caseTimelineEvents: any[];
+  /** Resolution detected data */
+  resolutionDetected: any | null;
+  /** Complaint Draft data */
+  complaintDraft: any | null;
+  /** Submission readiness data */
+  submissionReadiness: any | null;
+  /** Submission status */
+  submissionStatus: any | null;
+  /** Authority response */
+  authorityResponse: any | null;
+  /** Collective Action Center */
+  collectiveActionData: any | null;
+  /** Collective Readiness */
+  collectiveReadiness: any | null;
+  /** Collective Consent Request */
+  collectiveConsent: any | null;
+  /** Representative Matches */
+  representativeMatches: any | null;
+  /** Collective Document Draft */
+  collectiveDocumentDraft: any | null;
+  /** Authority Response Analysis */
+  authorityResponseAnalysis: any | null;
+  /** Deadline Detected */
+  deadlineDetected: any | null;
+  /** Escalation Recommendation */
+  escalationRecommendation: any | null;
+  /** Resolution Confirmation */
+  resolutionConfirmation: any | null;
+  /** Memory Update */
+  memoryUpdate: any | null;
+  /** Memory Conflict Detected */
+  memoryConflict: any | null;
+  /** Lawyer review completed */
+  lawyerReviewCompleted: any | null;
+  /** Lawyer message received */
+  lawyerMessageReceived: any | null;
+  /** Notification created */
+  notificationCreated: any | null;
+  /** Appointment proposed */
+  appointmentProposed: any | null;
+  /** Communication failed */
+  communicationFailed: any | null;
+  /** Risk signal detected */
+  riskSignalDetected: any | null;
+  /** Evidence gap detected */
+  evidenceGapDetected: any | null;
+  /** Prevention checklist */
+  preventionChecklist: any | null;
+  /** Risk history */
+  riskHistory: any | null;
+  /** Document processing status */
+  documentProcessing: any | null;
+  /** Decision audit started */
+  decisionAuditStarted: any | null;
+  /** Legal output validated */
+  legalOutputValidated: any | null;
+  /** Legal output blocked */
+  legalOutputBlocked: any | null;
+  /** Human review required */
+  humanReviewRequired: any | null;
+  /** System Health Changed */
+  systemHealthChanged: any | null;
+  /** Service Degraded */
+  serviceDegraded: any | null;
+  /** Service Restored */
+  serviceRestored: any | null;
+  /** Operation Rate Limited */
+  operationRateLimited: any | null;
+  /** Incident Detected */
+  incidentDetected: any | null;
+  /** Governance Check Started */
+  governanceCheckStarted: any | null;
+  /** Consent Required */
+  consentRequired: any | null;
+  /** Consent Withdrawn */
+  consentWithdrawn: any | null;
+  /** Data Sharing Blocked */
+  dataSharingBlocked: any | null;
+  /** Recovery Check Started */
+  recoveryCheckStarted: any | null;
+  /** Case Integrity Warning */
+  caseIntegrityWarning: any | null;
+  /** Recovery Required */
+  recoveryRequired: any | null;
+  /** Recovery Started */
+  recoveryStarted: any | null;
+  /** Recovery Completed */
+  recoveryCompleted: any | null;
+  /** Workflow Integrity Failure */
+  workflowIntegrityFailure: any | null;
+  /** Continuity Check Started */
+  continuityCheckStarted: any | null;
+  /** Continuity Status Updated */
+  continuityStatusUpdated: any | null;
+  /** Continuity Attention Required */
+  continuityAttentionRequired: any | null;
+  /** Continuity Intervention Created */
+  continuityInterventionCreated: any | null;
+  /** Continuity Owner Changed */
+  continuityOwnerChanged: any | null;
+  /** Data Export Ready */
+  dataExportReady: any | null;
+  /** Data Deletion Completed */
+  dataDeletionCompleted: any | null;
+  /** Data Retention Required */
+  dataRetentionRequired: any | null;
+  /** Data Correction Applied */
+  dataCorrectionApplied: any | null;
+  /** Privacy Access Logged */
+  privacyAccessLogged: any | null;
 }
 
 const INITIAL_STATE: StreamState = {
@@ -54,6 +178,69 @@ const INITIAL_STATE: StreamState = {
   legacySources: [],
   error: null,
   detectedLanguage: 'en',
+  isEmergency: false,
+  caseClassification: null,
+  followUpQuestions: [],
+  legalRetrievalStarted: false,
+  legalSources: [],
+  legalAnalysis: null,
+  caseTimelineEvents: [],
+  resolutionDetected: null,
+  complaintDraft: null,
+  submissionReadiness: null,
+  submissionStatus: null,
+  authorityResponse: null,
+  collectiveActionData: null,
+  collectiveReadiness: null,
+  collectiveConsent: null,
+  representativeMatches: null,
+  collectiveDocumentDraft: null,
+  authorityResponseAnalysis: null,
+  deadlineDetected: null,
+  escalationRecommendation: null,
+  resolutionConfirmation: null,
+  memoryUpdate: null,
+  memoryConflict: null,
+  lawyerReviewCompleted: null,
+  lawyerMessageReceived: null,
+  notificationCreated: null,
+  appointmentProposed: null,
+  communicationFailed: null,
+  riskSignalDetected: null,
+  evidenceGapDetected: null,
+  preventionChecklist: null,
+  riskHistory: null,
+  documentProcessing: null,
+  documentMemoryConflict: null,
+  decisionAuditStarted: null,
+  legalOutputValidated: null,
+  legalOutputBlocked: null,
+  humanReviewRequired: null,
+  systemHealthChanged: null,
+  serviceDegraded: null,
+  serviceRestored: null,
+  operationRateLimited: null,
+  incidentDetected: null,
+  governanceCheckStarted: null,
+  consentRequired: null,
+  consentWithdrawn: null,
+  dataSharingBlocked: null,
+  recoveryCheckStarted: null,
+  caseIntegrityWarning: null,
+  recoveryRequired: null,
+  recoveryStarted: null,
+  recoveryCompleted: null,
+  workflowIntegrityFailure: null,
+  continuityCheckStarted: null,
+  continuityStatusUpdated: null,
+  continuityAttentionRequired: null,
+  continuityInterventionCreated: null,
+  continuityOwnerChanged: null,
+  dataExportReady: null,
+  dataDeletionCompleted: null,
+  dataRetentionRequired: null,
+  dataCorrectionApplied: null,
+  privacyAccessLogged: null,
 };
 
 export interface UseStreamingChatOptions {
@@ -90,6 +277,10 @@ export function useStreamingChat({ question, audience = 'default', language = 'a
     abortRef.current?.abort();
     abortRef.current = null;
     setState(INITIAL_STATE);
+  }, []);
+
+  const clearEmergency = React.useCallback(() => {
+    setState((prev) => ({ ...prev, isEmergency: false }));
   }, []);
 
   const start = React.useCallback(
@@ -141,6 +332,22 @@ export function useStreamingChat({ question, audience = 'default', language = 'a
           // Keep the last incomplete chunk in buffer
           buffer = parts.pop() ?? '';
 
+          // Sanitize events to prevent leaking internal policy reasoning or cross-user data
+          const sanitizeEvent = (evt: any) => {
+            if (!evt) return evt;
+            // Create a shallow copy
+            const clean = typeof evt === 'object' ? { ...evt } : evt;
+            // Strip sensitive fields
+            delete clean.policy_reasoning;
+            delete clean.internal_rules;
+            delete clean.model_reasoning;
+            delete clean.user_id;
+            delete clean.system_prompt;
+            delete clean.debug_info;
+            delete clean.cross_user_metrics;
+            return clean;
+          };
+
           for (const part of parts) {
             const line = part.trim();
             if (!line.startsWith('data:')) continue;
@@ -157,6 +364,10 @@ export function useStreamingChat({ question, audience = 'default', language = 'a
             }
 
             const type = event.type as string;
+
+            if (event.emergency_mode === true || type === 'emergency') {
+              setState((prev) => ({ ...prev, isEmergency: true }));
+            }
 
             if (type === 'status') {
               // ── Status event: update message, keep showing spinner ──────────
@@ -194,6 +405,355 @@ export function useStreamingChat({ question, audience = 'default', language = 'a
               }));
               reader.cancel();
               break;
+            } else if (type === 'case_classification_update') {
+              setState((prev) => ({
+                ...prev,
+                caseClassification: sanitizeEvent(event.data || event.classification || event)
+              }));
+            } else if (type === 'follow_up_question') {
+              setState((prev) => ({
+                ...prev,
+                followUpQuestions: [...prev.followUpQuestions, sanitizeEvent(event.question || event.data || event)]
+              }));
+            } else if (type === 'legal_retrieval_started') {
+              setState((prev) => ({
+                ...prev,
+                legalRetrievalStarted: true,
+                statusMessage: (event.message as string) || "Retrieving legal sources...",
+              }));
+            } else if (type === 'legal_sources_found') {
+              setState((prev) => ({
+                ...prev,
+                legalSources: (event.sources as any[]) || [],
+              }));
+            } else if (type === 'legal_analysis_update') {
+              setState((prev) => ({
+                ...prev,
+                legalAnalysis: sanitizeEvent(event.analysis || event.data),
+              }));
+            } else if (type === 'case_timeline_event') {
+              setState((prev) => ({
+                ...prev,
+                caseTimelineEvents: [...prev.caseTimelineEvents, sanitizeEvent(event.data || event.event || event)],
+              }));
+            } else if (type === 'resolution_detected') {
+              setState((prev) => ({
+                ...prev,
+                resolutionDetected: sanitizeEvent(event.data || event.resolution || event),
+              }));
+            } else if (type === 'complaint_draft_update' || type === 'complaint_generated') {
+              setState((prev) => ({
+                ...prev,
+                complaintDraft: sanitizeEvent(event.data || event.draft || event),
+              }));
+            } else if (type === 'submission_readiness_update') {
+              setState((prev) => ({
+                ...prev,
+                submissionReadiness: sanitizeEvent(event.data || event.readiness || event),
+              }));
+            } else if (type === 'submission_status_update') {
+              setState((prev) => ({
+                ...prev,
+                submissionStatus: sanitizeEvent(event.data || event.status || event),
+              }));
+            } else if (type === 'authority_response') {
+              setState((prev) => ({
+                ...prev,
+                authorityResponse: sanitizeEvent(event.data || event.response || event),
+              }));
+            } else if (type === 'collective_action_started' || type === 'collective_action_update') {
+              setState((prev) => ({
+                ...prev,
+                collectiveActionData: sanitizeEvent(event.data || event),
+              }));
+            } else if (type === 'collective_readiness_update') {
+              setState((prev) => ({
+                ...prev,
+                collectiveReadiness: sanitizeEvent(event.data || event),
+              }));
+            } else if (type === 'collective_consent_request') {
+              setState((prev) => ({
+                ...prev,
+                collectiveConsent: sanitizeEvent(event.data || event),
+              }));
+            } else if (type === 'representative_matches_found') {
+              setState((prev) => ({
+                ...prev,
+                representativeMatches: sanitizeEvent(event.matches || event.data || event),
+              }));
+            } else if (type === 'collective_document_drafted') {
+              setState((prev) => ({
+                ...prev,
+                collectiveDocumentDraft: sanitizeEvent(event.draft || event.data || event),
+              }));
+            } else if (type === 'authority_response_analysis') {
+              setState((prev) => ({
+                ...prev,
+                authorityResponseAnalysis: sanitizeEvent(event.data || event.analysis || event),
+              }));
+            } else if (type === 'deadline_detected') {
+              setState((prev) => ({
+                ...prev,
+                deadlineDetected: sanitizeEvent(event.data || event.deadline || event),
+              }));
+            } else if (type === 'escalation_recommendation') {
+              setState((prev) => ({
+                ...prev,
+                escalationRecommendation: sanitizeEvent(event.data || event.recommendation || event),
+              }));
+            } else if (type === 'resolution_confirmation') {
+              setState((prev) => ({
+                ...prev,
+                resolutionConfirmation: sanitizeEvent(event.data || event.confirmation || event),
+              }));
+            } else if (type === 'memory_update') {
+              setState((prev) => ({
+                ...prev,
+                memoryUpdate: sanitizeEvent(event.data || event.update || event),
+              }));
+            } else if (type === 'memory_conflict_detected') {
+              setState((prev) => ({
+                ...prev,
+                memoryConflict: sanitizeEvent(event.data || event.conflict || event),
+                statusMessage: 'Memory conflict detected. User input required.',
+              }));
+            } else if (type === 'lawyer_review_completed') {
+              setState((prev) => ({
+                ...prev,
+                lawyerReviewCompleted: sanitizeEvent(event.data || event.review || event),
+                statusMessage: 'Lawyer review completed.',
+              }));
+            } else if (type === 'lawyer_message_received') {
+              setState((prev) => ({
+                ...prev,
+                lawyerMessageReceived: sanitizeEvent(event.data || event.message || event),
+                statusMessage: 'New message from lawyer.',
+              }));
+            } else if (type === 'notification_created') {
+              setState((prev) => ({
+                ...prev,
+                notificationCreated: sanitizeEvent(event.data || event.notification || event),
+                statusMessage: 'New notification received.',
+              }));
+            } else if (type === 'appointment_proposed') {
+              setState((prev) => ({
+                ...prev,
+                appointmentProposed: sanitizeEvent(event.data || event.appointment || event),
+                statusMessage: 'New appointment proposed.',
+              }));
+            } else if (type === 'communication_failed') {
+              setState((prev) => ({
+                ...prev,
+                communicationFailed: sanitizeEvent(event.data || event.error || event),
+                statusMessage: 'Communication error occurred.',
+              }));
+            } else if (type === 'risk_signal_detected') {
+              setState((prev) => ({
+                ...prev,
+                riskSignalDetected: sanitizeEvent(event.data || event.signal || event),
+                statusMessage: 'New legal risk signal detected.',
+              }));
+            } else if (type === 'evidence_gap_detected') {
+              setState((prev) => ({
+                ...prev,
+                evidenceGapDetected: sanitizeEvent(event.data || event.gap || event),
+                statusMessage: 'Evidence gap identified.',
+              }));
+            } else if (type === 'prevention_checklist_update') {
+              setState((prev) => ({
+                ...prev,
+                preventionChecklist: sanitizeEvent(event.data || event.checklist || event),
+              }));
+            } else if (type === 'risk_history_update') {
+              setState((prev) => ({
+                ...prev,
+                riskHistory: sanitizeEvent(event.data || event.history || event),
+              }));
+            } else if (type === 'document_processing') {
+              setState((prev) => ({
+                ...prev,
+                documentProcessing: sanitizeEvent(event.data || event.processing || event),
+                statusMessage: 'Processing document...',
+              }));
+            } else if (type === 'document_memory_conflict') {
+              setState((prev) => ({
+                ...prev,
+                documentMemoryConflict: sanitizeEvent(event.data || event.conflict || event),
+                statusMessage: 'Document conflict detected.',
+              }));
+            } else if (type === 'decision_audit_started') {
+              setState((prev) => ({
+                ...prev,
+                decisionAuditStarted: sanitizeEvent(event.data || event),
+                statusMessage: 'Starting legal decision audit...',
+              }));
+            } else if (type === 'legal_output_validated') {
+              setState((prev) => ({
+                ...prev,
+                legalOutputValidated: sanitizeEvent(event.data || event),
+                statusMessage: 'Legal output validated.',
+              }));
+            } else if (type === 'legal_output_blocked') {
+              setState((prev) => ({
+                ...prev,
+                legalOutputBlocked: sanitizeEvent(event.data || event),
+                statusMessage: 'Legal output blocked. Review required.',
+              }));
+            } else if (type === 'human_review_required') {
+              setState((prev) => ({
+                ...prev,
+                humanReviewRequired: sanitizeEvent(event.data || event),
+                statusMessage: 'Human review required.',
+              }));
+            } else if (type === 'system_health_changed') {
+              setState((prev) => ({
+                ...prev,
+                systemHealthChanged: sanitizeEvent(event.data || event),
+                statusMessage: 'System health updated.',
+              }));
+            } else if (type === 'service_degraded') {
+              setState((prev) => ({
+                ...prev,
+                serviceDegraded: sanitizeEvent(event.data || event),
+                statusMessage: 'Service degraded warning.',
+              }));
+            } else if (type === 'service_restored') {
+              setState((prev) => ({
+                ...prev,
+                serviceRestored: sanitizeEvent(event.data || event),
+                statusMessage: 'Service restored.',
+              }));
+            } else if (type === 'operation_rate_limited') {
+              setState((prev) => ({
+                ...prev,
+                operationRateLimited: sanitizeEvent(event.data || event),
+                statusMessage: 'Operation rate limited.',
+              }));
+            } else if (type === 'incident_detected') {
+              setState((prev) => ({
+                ...prev,
+                incidentDetected: sanitizeEvent(event.data || event),
+                statusMessage: 'Incident detected.',
+              }));
+            } else if (type === 'governance_check_started') {
+              setState((prev) => ({
+                ...prev,
+                governanceCheckStarted: sanitizeEvent(event.data || event),
+                statusMessage: 'Governance check started.',
+              }));
+            } else if (type === 'consent_required') {
+              setState((prev) => ({
+                ...prev,
+                consentRequired: sanitizeEvent(event.data || event),
+                statusMessage: 'Consent required.',
+              }));
+            } else if (type === 'consent_withdrawn') {
+              setState((prev) => ({
+                ...prev,
+                consentWithdrawn: sanitizeEvent(event.data || event),
+                statusMessage: 'Consent withdrawn.',
+              }));
+            } else if (type === 'data_sharing_blocked') {
+              setState((prev) => ({
+                ...prev,
+                dataSharingBlocked: sanitizeEvent(event.data || event),
+                statusMessage: 'Data sharing blocked.',
+              }));
+            } else if (type === 'recovery_check_started') {
+              setState((prev) => ({
+                ...prev,
+                recoveryCheckStarted: sanitizeEvent(event.data || event),
+                statusMessage: 'Recovery check started...',
+              }));
+            } else if (type === 'case_integrity_warning') {
+              setState((prev) => ({
+                ...prev,
+                caseIntegrityWarning: sanitizeEvent(event.data || event),
+                statusMessage: 'Case integrity warning.',
+              }));
+            } else if (type === 'recovery_required') {
+              setState((prev) => ({
+                ...prev,
+                recoveryRequired: sanitizeEvent(event.data || event),
+                statusMessage: 'Recovery required.',
+              }));
+            } else if (type === 'recovery_started') {
+              setState((prev) => ({
+                ...prev,
+                recoveryStarted: sanitizeEvent(event.data || event),
+                statusMessage: 'System recovery started.',
+              }));
+            } else if (type === 'recovery_completed') {
+              setState((prev) => ({
+                ...prev,
+                recoveryCompleted: sanitizeEvent(event.data || event),
+                statusMessage: 'System recovery completed.',
+              }));
+            } else if (type === 'workflow_integrity_failure') {
+              setState((prev) => ({
+                ...prev,
+                workflowIntegrityFailure: sanitizeEvent(event.data || event),
+                statusMessage: 'Workflow integrity failure detected.',
+              }));
+            } else if (type === 'continuity_check_started') {
+              setState((prev) => ({
+                ...prev,
+                continuityCheckStarted: sanitizeEvent(event.data || event),
+                statusMessage: 'Continuity check started.',
+              }));
+            } else if (type === 'continuity_status_updated') {
+              setState((prev) => ({
+                ...prev,
+                continuityStatusUpdated: sanitizeEvent(event.data || event),
+                statusMessage: 'Continuity status updated.',
+              }));
+            } else if (type === 'continuity_attention_required') {
+              setState((prev) => ({
+                ...prev,
+                continuityAttentionRequired: sanitizeEvent(event.data || event),
+                statusMessage: 'Continuity attention required.',
+              }));
+            } else if (type === 'continuity_intervention_created') {
+              setState((prev) => ({
+                ...prev,
+                continuityInterventionCreated: sanitizeEvent(event.data || event),
+                statusMessage: 'Continuity intervention created.',
+              }));
+            } else if (type === 'continuity_owner_changed') {
+              setState((prev) => ({
+                ...prev,
+                continuityOwnerChanged: sanitizeEvent(event.data || event),
+                statusMessage: 'Continuity owner changed.',
+              }));
+            } else if (type === 'data_export_ready') {
+              setState((prev) => ({
+                ...prev,
+                dataExportReady: sanitizeEvent(event.data || event),
+                statusMessage: 'Data export is ready.',
+              }));
+            } else if (type === 'data_deletion_completed') {
+              setState((prev) => ({
+                ...prev,
+                dataDeletionCompleted: sanitizeEvent(event.data || event),
+                statusMessage: 'Data deletion request completed.',
+              }));
+            } else if (type === 'data_retention_required') {
+              setState((prev) => ({
+                ...prev,
+                dataRetentionRequired: sanitizeEvent(event.data || event),
+                statusMessage: 'Data retention is required.',
+              }));
+            } else if (type === 'data_correction_applied') {
+              setState((prev) => ({
+                ...prev,
+                dataCorrectionApplied: sanitizeEvent(event.data || event),
+                statusMessage: 'Data correction has been applied.',
+              }));
+            } else if (type === 'privacy_access_logged') {
+              setState((prev) => ({
+                ...prev,
+                privacyAccessLogged: sanitizeEvent(event.data || event),
+              }));
             }
             // Unknown event types are silently ignored for forward-compatibility
           }
@@ -212,5 +772,5 @@ export function useStreamingChat({ question, audience = 'default', language = 'a
     [question, audience, language]
   );
 
-  return { state, start, reset };
+  return { state, start, reset, clearEmergency };
 }

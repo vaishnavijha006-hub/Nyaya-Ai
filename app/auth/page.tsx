@@ -14,10 +14,10 @@ import { Label } from '@/components/ui/label';
 import { Reveal } from '@/components/nyaya/reveal';
 import { cn } from '@/lib/utils';
 
-export default function AuthPage() {
+export default function AuthPage({ defaultMode }: { defaultMode?: 'signin' | 'signup' } = {}) {
   const { signIn, signUp } = useAuth();
   const router = useRouter();
-  const [mode, setMode] = React.useState<'signin' | 'signup'>('signin');
+  const [mode, setMode] = React.useState<'signin' | 'signup'>(defaultMode ?? 'signin');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [busy, setBusy] = React.useState(false);

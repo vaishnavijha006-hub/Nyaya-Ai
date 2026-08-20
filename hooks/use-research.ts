@@ -11,6 +11,7 @@ export interface ResearchSession {
   sources: any[];
   articles_retrieved: string[];
   created_at: string;
+  decision_trace?: any;
 }
 
 export interface AnalyticsSummary {

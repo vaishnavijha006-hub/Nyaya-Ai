@@ -28,7 +28,7 @@ class AdminStatsResponse(BaseModel):
     total_conversations: int = 1250
     uploaded_documents: int
     api_status: str = "operational"
-    model_name: str = "llama-3.3-70b-versatile"
+    model_name: str = "openai/gpt-oss-20b"
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     vector_db_chunks: int = 825
     error_rate: float = 0.01
@@ -45,7 +45,7 @@ async def get_admin_stats(user: AuthenticatedUser = Depends(verify_supabase_jwt)
         return AdminStatsResponse(
             uploaded_documents=uploaded_count,
             api_status="healthy",
-            model_name="llama-3.3-70b-versatile",
+            model_name="openai/gpt-oss-20b",
             embedding_model="BAAI/bge-small-en-v1.5",
             vector_db_chunks=825,
             error_rate=0.005,

@@ -75,9 +75,10 @@ def translate_text(text: str, target_lang: str) -> str:
         f"You are a professional legal translator for Indian Citizens.\n"
         f"CRITICAL RULE: Translate the provided legal explanation completely and accurately into {lang_label}.\n"
         f"RULES:\n"
-        f"1. Produce the ENTIRE output strictly in {lang_label}.\n"
+        f"1. Produce the ENTIRE output strictly in {lang_label}. Do NOT provide the original English alongside it.\n"
         f"2. Keep statutory proper names and citations (e.g. 'Article 21', 'Consumer Protection Act', 'K.S. Puttaswamy v. Union of India') in their original clear citation format.\n"
-        f"3. Do NOT add meta commentary like 'Here is the translation:' — return ONLY the final translated response."
+        f"3. Do NOT add meta commentary like 'Here is the translation:' — return ONLY the final translated response.\n"
+        f"4. SEVERE WARNING: Never output repetitive conversational fillers (e.g. 'Kya hua', 'What happened') or enter an infinite loop. Just translate the text directly and naturally."
     )
 
     for attempt in range(3):

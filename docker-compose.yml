@@ -1,0 +1,8 @@
+version: "3.8"
+services:
+  inbucket:
+    image: inbucket/inbucket:latest
+    ports:
+      - "9000:9000"
+      - "12500:2500"
+      - "1110:1100"

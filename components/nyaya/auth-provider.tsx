@@ -52,7 +52,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = React.useCallback(async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
       return { error: error ? error.message : null };
     } catch (err: any) {
       return { error: err?.message || 'Network error: Unable to reach authentication server. Please check your Supabase project status or internet connection.' };

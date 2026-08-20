@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageSquare, FileText, ScrollText, Settings, Menu, X, Plus, LogOut,
-  FolderOpen, BarChart3, Mic, ShieldAlert, Briefcase, PenTool,
+  FolderOpen, BarChart3, Mic, ShieldAlert, Briefcase, PenTool, Users,
 } from 'lucide-react';
 import { Logo } from '@/components/nyaya/logo';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ const nav = [
   { href: '/rti', label: 'RTI Generator', icon: FileText },
   { href: '/legal-notice', label: 'Legal Notice', icon: ScrollText },
   { href: '/fir', label: 'FIR Drafter', icon: ShieldAlert },
+  { href: '/cluster-cases', label: 'Collective Action', icon: Users },
   { href: '/contracts', label: 'Contract Generator', icon: PenTool },
   { href: '/lawyers', label: 'Lawyers Network', icon: Briefcase },
   { href: '/voice', label: 'Voice Features', icon: Mic },

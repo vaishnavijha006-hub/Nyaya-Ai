@@ -16,8 +16,8 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# Primary model: llama-3.1-8b-instant has 6M tokens/day free (60x more than 70b model)
-PRIMARY_MODEL = "llama-3.1-8b-instant"
+# Primary model: gpt-oss-20b (Recommended replacement for Llama 3.1 8B Instant)
+PRIMARY_MODEL = "openai/gpt-oss-20b"
 
 @functools.lru_cache(maxsize=1)
 def get_groq_client():
@@ -178,7 +178,9 @@ def generate_rag_system_prompt(lang_code: str) -> str:
         f"RULES:\n"
         f"1. Answer ONLY using information from the context.\n"
         f"2. Do NOT translate formal proper names like case titles (e.g., 'K.S. Puttaswamy v. Union of India') or section numbers (e.g. 'Section 1'). Keep citations exact.\n"
-        f"3. All explanations, headings, and details must be in {lang_name}."
+        f"3. All explanations, headings, and details must be in {lang_name}.\n"
+        f"4. DO NOT repeat the user's question. DO NOT output conversational fillers like 'Kya hua' repeatedly. DO NOT output translation pairs in brackets.\n"
+        f"5. PREVENTION ENGINE DIRECTIVE: NEVER output deterministic predictions about the outcome of a case (e.g., 'You will win', 'You will lose'). Always use probabilistic language and advise consulting a professional."
     )
 
 
@@ -236,7 +238,7 @@ def ask_llm_rag(question: str, context: str, language: str = "en", history: str 
                 {"role": "system", "content": sys_prompt},
                 {"role": "user",   "content": user_prompt},
             ],
-            temperature=0.1,
+            temperature=0.7,
             max_tokens=1024,
         )
         raw_ans = response.choices[0].message.content or ""
@@ -280,7 +282,7 @@ def ask_llm_rag_stream(question: str, context: str, language: str = "en", histor
                     {"role": "system", "content": sys_prompt},
                     {"role": "user",   "content": user_prompt},
                 ],
-                temperature=0.1,
+                temperature=0.7,
                 max_tokens=1024,
                 stream=True,
             )
@@ -297,7 +299,7 @@ def ask_llm_rag_stream(question: str, context: str, language: str = "en", histor
                     {"role": "system", "content": sys_prompt},
                     {"role": "user",   "content": user_prompt},
                 ],
-                temperature=0.1,
+                temperature=0.7,
                 max_tokens=1024,
             )
             raw_answer = raw_response.choices[0].message.content or ""

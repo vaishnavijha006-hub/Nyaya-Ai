@@ -5,19 +5,25 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from app.utils.security import validate_environment
-from app.api.chat import router as chat_router
-from app.api.llm import router as llm_router
-from app.api.research import router as research_router
-from app.api.rti import router as rti_router
-from app.api.legal_notice import router as legal_notice_router
-from app.api.fir import router as fir_router
-from app.api.speech import router as speech_router
-from app.api.tts import router as tts_router
-from app.api.voice import router as voice_router
-from app.api.admin import router as admin_router
-from app.api.pdf_upload import router as pdf_upload_router
-from app.api.contract import router as contract_router
+from .utils.security import validate_environment
+from .api.chat import router as chat_router
+from .api.llm import router as llm_router
+from .api.research import router as research_router
+from .api.rti import router as rti_router
+from .api.legal_notice import router as legal_notice_router
+from .api.fir import router as fir_router
+from .api.speech import router as speech_router
+from .api.tts import router as tts_router
+from .api.voice import router as voice_router
+from .api.admin import router as admin_router
+from .api.pdf_upload import router as pdf_upload_router
+from .api.contract import router as contract_router
+from .api.emergency import router as emergency_router
+from .api.case_progress import router as case_progress_router
+from .api.prevention import router as prevention_router
+from .api.audits import router as audits_router
+from .api.guard import router as guard_router
+from .middleware.guard import GuardMiddleware
 
 # Initialize Limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -44,6 +50,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add GUARD Middleware
+app.add_middleware(GuardMiddleware)
+
 # Register routers after CORSMiddleware
 app.include_router(chat_router)
 app.include_router(llm_router)
@@ -57,8 +66,11 @@ app.include_router(voice_router)
 app.include_router(admin_router)
 app.include_router(pdf_upload_router)
 app.include_router(contract_router)
-
-
+app.include_router(emergency_router)
+app.include_router(case_progress_router)
+app.include_router(prevention_router)
+app.include_router(audits_router, prefix="/api/audits", tags=["Audits"])
+app.include_router(guard_router)
 @app.get("/")
 def root():
     return {

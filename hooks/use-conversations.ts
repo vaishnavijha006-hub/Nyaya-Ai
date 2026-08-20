@@ -68,8 +68,6 @@ export function useConversation(conversationId: string | null) {
       console.warn('[Supabase Warning] Failed to fetch messages for conversation:', conversationId, error.message);
     } else if (data) {
       if (data.length > 0) {
-        // Only replace messages if Supabase returned real data.
-        // If empty, keep local optimistic messages so streaming stays visible.
         setMessages(
           (data as Array<{ id: string; role: 'user' | 'assistant'; content: string; citations: Citation[] | null }>).map(
             (m) => ({
@@ -80,8 +78,9 @@ export function useConversation(conversationId: string | null) {
             })
           )
         );
+      } else {
+        setMessages([]);
       }
-      // data.length === 0 means brand-new conversation — keep local state intact
     }
     setLoading(false);
   }, [conversationId]);

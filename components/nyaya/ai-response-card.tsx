@@ -2,13 +2,15 @@
 
 import * as React from 'react';
 import { motion } from 'framer-motion';
-import { Copy, Check, ThumbsUp, ThumbsDown, Sparkles, Volume2, Loader2 } from 'lucide-react';
+import { Copy, Check, ThumbsUp, ThumbsDown, Sparkles, Volume2, Loader2, Users, ArrowRight, Scale, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import Link from 'next/link';
 import { CitationList, type Citation } from '@/components/nyaya/citation-card';
 import { SourceCardList, type SourceCitation } from '@/components/nyaya/source-card';
 import { TypingDots } from '@/components/nyaya/loading';
 import { cn } from '@/lib/utils';
 import { synthesizeSpeech } from '@/lib/speech';
+import { detectClusterMatch, detectDlsaEligibility } from '@/lib/ekjut-demo';
 
 export interface AIResponse {
   id: string;
@@ -128,9 +130,63 @@ export function AIResponseCard({ response }: { response: AIResponse }) {
               <TypingDots />
             </div>
           ) : (
-            <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground/90">
-              {response.content}
-            </p>
+            <>
+              <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground/90">
+                {response.content}
+              </p>
+              
+              {/* Ekjut Engine Demo Injection */}
+              {detectClusterMatch(response.content) && (
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.5 }} className="mt-4 rounded-xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 p-4 relative overflow-hidden">
+                  <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-indigo-500/10 blur-xl"></div>
+                  <div className="flex items-start gap-3 relative z-10">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/20 text-indigo-600 dark:text-indigo-400">
+                      <Users className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-indigo-700 dark:text-indigo-400">Ekjut Engine Alert</h4>
+                      <p className="mt-1 text-xs text-foreground/90 leading-relaxed">
+                        <strong className="text-rose-500">{detectClusterMatch(response.content)?.affectedCount} others</strong> have reported the same issue with <strong className="font-semibold">{detectClusterMatch(response.content)?.opposingParty}</strong>. You are eligible to file a Joint Action.
+                      </p>
+                      <Link href="/cluster-cases">
+                        <button className="mt-3 flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md hover:from-indigo-700 hover:to-purple-700 transition-colors">
+                          Unite & Draft Joint Action <ArrowRight className="h-3.5 w-3.5" />
+                        </button>
+                      </Link>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+              
+              {/* DLSA Bridge Demo Injection */}
+              {detectDlsaEligibility(response.content) && (
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.7 }} className="mt-4 rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 p-4 relative overflow-hidden">
+                  <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-emerald-500/10 blur-xl"></div>
+                  <div className="flex items-start gap-3 relative z-10">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                      <Scale className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-emerald-700 dark:text-emerald-400">🏛️ DLSA Free Legal Aid Eligibility</h4>
+                      <p className="mt-1 text-xs text-foreground/90 leading-relaxed">
+                        Based on your profile (<strong className="font-semibold">{detectDlsaEligibility(response.content)?.category}</strong>), you are eligible for 100% Free Legal Aid under <strong className="text-emerald-600 dark:text-emerald-400">{detectDlsaEligibility(response.content)?.reason}</strong>.
+                      </p>
+                      <p className="mt-1 text-xs text-foreground/90 leading-relaxed text-rose-500 font-medium">
+                        We have drafted your e-FIR under <strong className="font-bold">{detectDlsaEligibility(response.content)?.suggestedFirSection}</strong> ({detectDlsaEligibility(response.content)?.suggestedFirTitle}) and located your nearest DLSA.
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button onClick={() => toast.success("e-FIR Draft PDF Downloaded!")} className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow hover:bg-emerald-700 transition-colors">
+                          <Download className="h-3.5 w-3.5" /> e-FIR Draft
+                        </button>
+                        <button onClick={() => toast.success("DLSA Application PDF Downloaded!")} className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-3 py-1.5 text-xs font-semibold hover:bg-emerald-500/20 transition-colors">
+                          <Download className="h-3.5 w-3.5" /> DLSA Application
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </>
           )}
 
           {/* Phase 6: SourceCardList — renders when backend citations[] available */}

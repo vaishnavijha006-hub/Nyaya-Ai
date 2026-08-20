@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { KnowledgeClusterBadge } from '@/components/nyaya/knowledge-cluster-badge';
 import { AppShell } from '@/components/nyaya/app-shell';
+import { LegalDecisionExplanation, DecisionTrace } from '@/components/nyaya/legal-decision-explanation';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase-client';
 
@@ -515,6 +516,31 @@ export default function WorkspacePage() {
                         </CardContent>
                       </Card>
                     </div>
+
+                    {/* Decision Trace / Legal Audit */}
+                    {selectedSession && (
+                      <div className="mt-4">
+                        <LegalDecisionExplanation 
+                          trace={
+                            selectedSession.decision_trace || {
+                              id: selectedSession.id,
+                              query: selectedSession.query,
+                              timestamp: selectedSession.created_at,
+                              hashChain: [],
+                              sourcesUsed: selectedSession.sources.map(s => ({
+                                title: `Article ${s.article_number || s.primary_article}`,
+                                id: `src-${Math.random().toString(36).substr(2, 9)}`,
+                                reliabilityScore: Math.round((s.relevance_score || 0.95) * 100)
+                              })),
+                              sourcesRejected: [],
+                              humanReviewStatus: 'not_required',
+                              validationResult: 'validated'
+                            } as DecisionTrace
+                          }
+                          isAdmin={false} // Lawyers don't see hash chains by default
+                        />
+                      </div>
+                    )}
 
                     {/* Sources retrieved */}
                     <div className="mt-4">

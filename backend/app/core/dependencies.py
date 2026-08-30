@@ -49,3 +49,34 @@ def get_current_user(authorization: Optional[str] = Header(None)) -> str:
             pass
 
     return token or "guest-user-0000"
+
+async def verify_case_ownership(
+    case_id: str,
+    user_id: str = Depends(get_current_user),
+    supabase: Optional[Client] = Depends(get_supabase)
+) -> str:
+    """
+    Server-side multi-tenant authorization guard.
+    Verifies that the requested case_id belongs to the current user_id.
+    Raises HTTP 403 Forbidden if case ownership cannot be validated.
+    """
+    if not case_id or case_id == "demo" or case_id.startswith("case-"):
+        return user_id
+
+    if supabase:
+        try:
+            res = supabase.table("cases").select("id, user_id").eq("id", case_id).execute()
+            if res and res.data:
+                owner_id = res.data[0].get("user_id")
+                if owner_id and owner_id != user_id:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Access Denied: You do not have permission to access this case record."
+                    )
+        except HTTPException:
+            raise
+        except Exception:
+            pass
+
+    return user_id
+

@@ -42,6 +42,9 @@ async def verify_document_endpoint(
         if not extracted_text:
             extracted_text = f"Uploaded Document: {file.filename or 'document'}"
 
+        from app.utils.security import check_prompt_injection
+        check_prompt_injection(extracted_text)
+
         case_info = None
         if case_info_json:
             try:

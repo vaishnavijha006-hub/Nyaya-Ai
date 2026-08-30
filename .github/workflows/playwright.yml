@@ -6,13 +6,14 @@ on:
     branches: [ main, master ]
 jobs:
   test:
-    timeout-minutes: 60
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v4
       with:
-        node-version: lts/*
+        node-version: '20'
+        cache: 'npm'
     - uses: actions/setup-python@v5
       with:
         python-version: '3.10'
@@ -28,8 +29,17 @@ jobs:
       run: |
         python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 &
       working-directory: backend
+    - name: Wait for FastAPI Backend Server Readiness
+      run: |
+        echo "Waiting for FastAPI server on http://127.0.0.1:8000/docs..."
+        curl --retry 15 --retry-delay 2 --retry-connrefused -s http://127.0.0.1:8000/docs > /dev/null
+        echo "FastAPI server is READY!"
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
+    - name: Run TypeScript Typecheck
+      run: npm run typecheck
+    - name: Run Production Next.js Build
+      run: npm run build
     - name: Run Playwright tests
       env:
         GROQ_API_KEY: ci_mock_key

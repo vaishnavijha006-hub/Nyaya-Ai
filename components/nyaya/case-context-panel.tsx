@@ -22,6 +22,8 @@ interface CaseContextPanelProps {
   onCloseMobile?: () => void;
 }
 
+import { getCanonicalCaseState, CanonicalCaseState } from '@/lib/case-state-manager';
+
 export function CaseContextPanel({
   caseClassification,
   journeyStage,
@@ -33,29 +35,45 @@ export function CaseContextPanel({
   className,
   onCloseMobile,
 }: CaseContextPanelProps) {
+  const [canonicalState, setCanonicalState] = React.useState<CanonicalCaseState>(() => getCanonicalCaseState('case-1'));
+
+  React.useEffect(() => {
+    const handleUpdate = (e: any) => {
+      if (e.detail) setCanonicalState(e.detail);
+    };
+    window.addEventListener('nyaya:case_updated', handleUpdate);
+    return () => window.removeEventListener('nyaya:case_updated', handleUpdate);
+  }, []);
+
   // Map backend journey stage string to 0-6 index for NyayaPath
   const currentStepIndex = React.useMemo(() => {
-    if (!journeyStage) return 0;
-    switch (journeyStage.toUpperCase()) {
+    const stage = journeyStage || canonicalState.journeyStage;
+    if (!stage) return 0;
+    switch (stage.toUpperCase()) {
+      case 'PROBLEM':
       case 'GATHER_DETAILS':
         return 1;
+      case 'FACTS':
       case 'REQUEST_DOCUMENTS':
       case 'VERIFY_DOCUMENTS':
         return 2;
+      case 'EVIDENCE':
       case 'LEGAL_ANALYSIS':
         return 3;
+      case 'RESOLUTION PATH':
       case 'CHECK_AID_ELIGIBILITY':
       case 'ROUTE_AID':
-      case 'CASE_TYPE_ANALYSIS':
         return 4;
+      case 'ACTION':
       case 'ACTION_PLAN':
         return 5;
+      case 'RESOLUTION':
       case 'COMPLETE':
         return 6;
       default:
         return 1;
     }
-  }, [journeyStage]);
+  }, [journeyStage, canonicalState.journeyStage]);
 
   // Extract structured facts safely
   const caseType = caseClassification?.category || caseClassification?.case_type || 'Legal Inquiry';

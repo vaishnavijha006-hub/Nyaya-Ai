@@ -428,11 +428,31 @@ function ChatPanel({
     }
   };
 
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const list = Array.from(e.target.files ?? []).map((f) => f.name);
-    if (list.length) {
-      setFiles((prev) => [...prev, ...list]);
-      toast.success(`Attached ${list.length} file${list.length > 1 ? 's' : ''}`);
+  const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(e.target.files ?? []);
+    if (!selectedFiles.length) return;
+
+    const names = selectedFiles.map((f) => f.name);
+    setFiles((prev) => [...prev, ...names]);
+
+    for (const file of selectedFiles) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await fetch('http://127.0.0.1:8000/cases/verify-document', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (res.ok) {
+          toast.success(`Successfully uploaded & verified: ${file.name}`);
+        } else {
+          toast.info(`Attached document: ${file.name}`);
+        }
+      } catch (err) {
+        toast.info(`Attached document: ${file.name}`);
+      }
     }
   };
 
@@ -572,7 +592,7 @@ function ChatPanel({
                       {streamState.documentRequest && (
                         <DocumentRequestCard
                           data={streamState.documentRequest}
-                          onUploadClick={() => toast.info('Use attachment (📎) button below to upload documents.')}
+                          onUploadClick={() => fileInputRef.current?.click()}
                         />
                       )}
                       {streamState.documentVerified && (

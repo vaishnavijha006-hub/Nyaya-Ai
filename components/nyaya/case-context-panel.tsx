@@ -176,10 +176,12 @@ export function CaseContextPanel({
 
         {/* Documents Status */}
         <div className="space-y-2">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <FileCheck className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
-            Documents
-          </h4>
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <FileCheck className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
+              Documents
+            </h4>
+          </div>
           <div className="rounded-xl border border-border/80 bg-card p-3 space-y-2 text-xs">
             {requiredDocs.length > 0 ? (
               requiredDocs.map((doc: any, idx: number) => {
@@ -196,7 +198,7 @@ export function CaseContextPanel({
               })
             ) : (
               <div className="flex items-center justify-between text-[11px]">
-                <span className="text-muted-foreground">Rent Agreement / Notices</span>
+                <span className="text-muted-foreground">Rent Agreement / Proof</span>
                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
                   Optional
                 </Badge>

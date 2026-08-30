@@ -9,7 +9,7 @@ from app.services.llm import get_groq_client, PRIMARY_MODEL, _is_rate_limit_erro
 
 logger = logging.getLogger(__name__)
 
-VERIFICATION_SYSTEM_PROMPT = """You are an expert Indian Legal AI Document Verifier.
+VERIFICATION_SYSTEM_PROMPT = """You are an expert Indian Legal AI Document Verifier. Output your response as a valid JSON object.
 Your job is to thoroughly inspect an extracted legal case document (such as an FIR, Lease Agreement, Cheque Dishonour Memo, Legal Demand Notice, Contract, or Court Order) and verify it against:
 1. Reported user case details (if provided).
 2. Statutory requirements under Indian Law (e.g. Negotiable Instruments Act 1881, Bharatiya Nyaya Sanhita, Bharatiya Nagarik Suraksha Sanhita, Transfer of Property Act 1882, Consumer Protection Act 2019).

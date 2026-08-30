@@ -19,8 +19,8 @@ load_dotenv(dotenv_path)
 
 logger = logging.getLogger(__name__)
 
-# Primary model: gpt-oss-20b (Recommended replacement for Llama 3.1 8B Instant)
-PRIMARY_MODEL = "openai/gpt-oss-20b"
+# Primary Groq model
+PRIMARY_MODEL = "llama-3.3-70b-versatile"
 
 @functools.lru_cache(maxsize=1)
 def get_groq_client():
@@ -68,7 +68,7 @@ def _gemini_fallback(system_prompt: str, user_prompt: str) -> str:
         client = google_genai.Client(api_key=gemini_key)
         full_prompt = f"{system_prompt}\n\n{user_prompt}"
         response = client.models.generate_content(
-            model="gemini-3.6-flash",
+            model="gemini-1.5-flash",
             contents=full_prompt,
         )
         return response.text

@@ -15,6 +15,7 @@ const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/chat', label: 'Ask Nyaya' },
   { href: '/cases', label: 'My Cases' },
+  { href: '/intelligence', label: 'Patterns' },
   { href: '/lawyers', label: 'Legal Aid' },
 ];
 

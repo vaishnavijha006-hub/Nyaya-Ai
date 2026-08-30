@@ -15,6 +15,7 @@ import { FactConflictPanel } from '@/components/nyaya/trust/fact-conflict-panel'
 import { ExplainRecommendation } from '@/components/nyaya/trust/explain-recommendation';
 import { LegalSourceCard } from '@/components/nyaya/trust/legal-source-card';
 import { CaseAuditTimeline } from '@/components/nyaya/trust/case-audit-timeline';
+import { RelatedPatternsSection } from '@/components/nyaya/intelligence/related-patterns-section';
 import { CaseProgress } from '@/components/nyaya/case-progress';
 import { CaseTimeline } from '@/components/nyaya/case-timeline';
 import { CaseTasks } from '@/components/nyaya/case-tasks';
@@ -62,6 +63,9 @@ export default function CaseDetailPage() {
       {/* Phase 6 Trust Summary & Fact Conflict Panel */}
       <CaseTrustSummary />
       <FactConflictPanel />
+
+      {/* Phase 7 Related Systemic Patterns */}
+      <RelatedPatternsSection caseId={caseId} />
 
       {/* Phase 5 Action Center */}
       <ActionCenter caseId={caseId} />

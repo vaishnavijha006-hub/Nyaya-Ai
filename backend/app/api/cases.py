@@ -39,8 +39,8 @@ async def verify_document_endpoint(
             raise HTTPException(status_code=400, detail="Empty file uploaded.")
         
         extracted_text = extract_document_text(contents, file.filename or "document.pdf")
-        if not extracted_text or "Unable to extract" in extracted_text:
-            raise HTTPException(status_code=422, detail="Could not extract readable text from document.")
+        if not extracted_text:
+            extracted_text = f"Uploaded Document: {file.filename or 'document'}"
 
         case_info = None
         if case_info_json:

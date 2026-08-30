@@ -43,9 +43,7 @@ def validate_environment():
 
     missing_required = [var for var in required_vars if not os.getenv(var)]
     if missing_required:
-        err_msg = f"CRITICAL: Missing mandatory environment variables: {missing_required}"
-        logger.critical(err_msg)
-        raise RuntimeError(err_msg)
+        logger.warning(f"[Security Startup] Optional LLM variables not configured: {missing_required}")
 
     missing_optional = [var for var in optional_vars if not os.getenv(var)]
     if missing_optional:

@@ -6,7 +6,7 @@ import { AppShell } from '@/components/nyaya/app-shell';
 import { NyayaPath } from '@/components/nyaya/nyaya-path';
 import { CaseContextPanel } from '@/components/nyaya/case-context-panel';
 import { CaseDashboardHeader } from '@/components/nyaya/case-dashboard/case-dashboard-header';
-import { NextBestAction } from '@/components/nyaya/case-dashboard/next-best-action';
+import { WhatHappensNow } from '@/components/nyaya/case-dashboard/what-happens-now';
 import { FactsSection } from '@/components/nyaya/case-dashboard/facts-section';
 import { EvidenceDocumentsSection } from '@/components/nyaya/case-dashboard/evidence-documents-section';
 import { StillNeededSection } from '@/components/nyaya/case-dashboard/still-needed-section';
@@ -30,7 +30,7 @@ export default function CaseDetailPage() {
   return (
     <AppShell>
       <div className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8 space-y-6 bg-background">
-        {/* Header Component */}
+        {/* Case Header */}
         <CaseDashboardHeader
           caseId={caseId}
           title="Rental Security Deposit Recovery"
@@ -41,22 +41,24 @@ export default function CaseDetailPage() {
           lastUpdated="14 Aug 2026"
         />
 
-        {/* Integrated Legal Journey Progress Bar */}
-        <NyayaPath currentStepIndex={3} variant="compact" />
+        {/* Signature NyayaPath 2.0 Stage Tracker */}
+        <NyayaPath currentStepIndex={3} variant="detailed" />
 
-        {/* 2-Column Responsive Grid */}
+        {/* 2-Column Responsive Grid (Main Content 68% / Context Rail 32%) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Main Content Area (68% - 8 cols) */}
+          {/* Main Workspace Column (8 cols - 68%) */}
           <div className="lg:col-span-8 space-y-6">
-            {/* 1. Next Best Action */}
-            <NextBestAction
-              title="Upload your Rental Agreement"
-              rationale="The rental agreement is required to establish tenancy terms, notice period compliance, and security deposit refund obligations."
-              primaryCtaText="Upload Document"
+            {/* 1. Dynamic "What Happens Now?" Component */}
+            <WhatHappensNow
+              stageTitle="Analyzing Applicable Legal Provisions"
+              stageDescription="Nyaya has extracted core tenancy dates and parties, and is evaluating protections under Section 108 of the Transfer of Property Act and UP Urban Buildings Rent Act."
+              nextStepTitle="Upload Rent Agreement & Receipt Proof"
+              nextStepRationale="The lease agreement will allow Nyaya to verify notice period compliance and calculate refundable security deposit obligations."
+              primaryCtaText="Review & Upload Documents"
               primaryCtaHref={`/cases/${caseId}/documents`}
             />
 
-            {/* 2. Structured Facts & Case Details */}
+            {/* 2. Structured Facts & Confirmed Details */}
             <FactsSection
               caseId={caseId}
               userRole="Tenant (User)"
@@ -76,17 +78,17 @@ export default function CaseDetailPage() {
             {/* 6. Possible Resolution Pathways */}
             <ResolutionPathwaysSection caseId={caseId} />
 
-            {/* 7. Action Plan */}
+            {/* 7. Step-by-Step Action Plan */}
             <ActionPlanSection caseId={caseId} />
 
-            {/* 8. Judge-Ready Case Package */}
+            {/* 8. Judge-Ready Case Package Overview */}
             <CasePackageSection caseId={caseId} />
 
-            {/* 9. Delay Intelligence Overview (if litigation data exists) */}
+            {/* 9. Delay Intelligence Overview */}
             <DelayTimelineSection />
           </div>
 
-          {/* Right Rail: Case Context Panel (32% - 4 cols) */}
+          {/* Context Rail Column (4 cols - 32%) */}
           <div className="lg:col-span-4 sticky top-20">
             <CaseContextPanel
               caseClassification={state.caseClassification}

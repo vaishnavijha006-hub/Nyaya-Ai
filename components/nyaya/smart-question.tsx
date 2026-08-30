@@ -1,8 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { motion } from 'framer-motion';
-import { Send, CheckCircle2, Circle } from 'lucide-react';
+import { Send, CheckCircle2, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -11,12 +10,21 @@ export interface SmartQuestionProps {
   questionId: string;
   question: string;
   type: 'single_choice' | 'yes_no' | 'text';
+  whyAsking?: string;
   options?: string[];
   onSubmit: (answer: string) => void;
   answeredValue?: string;
 }
 
-export function SmartQuestion({ questionId, question, type, options, onSubmit, answeredValue }: SmartQuestionProps) {
+export function SmartQuestion({
+  questionId,
+  question,
+  type,
+  whyAsking = 'Helps determine applicable statutory protection and jurisdiction.',
+  options,
+  onSubmit,
+  answeredValue,
+}: SmartQuestionProps) {
   const [textAnswer, setTextAnswer] = React.useState('');
   const [selectedOption, setSelectedOption] = React.useState<string | null>(null);
 
@@ -34,67 +42,46 @@ export function SmartQuestion({ questionId, question, type, options, onSubmit, a
     }
   };
 
+  const defaultOptions = options || ['Yes', 'No', "I'm not sure"];
+
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="my-4 rounded-xl border border-border bg-card shadow-sm overflow-hidden"
-    >
-      <div className="bg-muted/30 px-4 py-3 border-b border-border/50">
-        <h4 className="text-sm font-medium leading-relaxed">{question}</h4>
+    <div className="my-4 rounded-xl border border-amber-500/30 bg-card shadow-xs overflow-hidden">
+      <div className="bg-amber-500/10 px-4 py-3 border-b border-amber-500/20 space-y-1">
+        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-400">
+          <HelpCircle className="h-3 w-3" />
+          <span>Why Nyaya is asking: {whyAsking}</span>
+        </div>
+        <h4 className="text-xs font-bold leading-relaxed text-foreground">{question}</h4>
       </div>
 
-      <div className="p-4">
+      <div className="p-4 space-y-3">
         {isAnswered ? (
-          <div className="flex items-center gap-2 text-sm text-primary font-medium bg-primary/5 p-3 rounded-lg border border-primary/20">
-            <CheckCircle2 className="h-4 w-4" />
+          <div className="flex items-center gap-2 text-xs text-emerald-800 dark:text-emerald-400 font-semibold bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/30">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
             <span>Answered: {answeredValue}</span>
           </div>
         ) : (
           <>
-            {(type === 'single_choice' && options) && (
-              <div className="grid gap-2">
-                {options.map((opt) => (
-                  <button
+            {(type === 'single_choice' || type === 'yes_no') && (
+              <div className="flex flex-wrap gap-2">
+                {(type === 'yes_no' ? ['Yes', 'No', "I'm not sure"] : defaultOptions).map((opt) => (
+                  <Button
                     key={opt}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      'text-xs font-semibold rounded-xl transition-all border-border hover:border-amber-500/60 hover:bg-amber-500/10',
+                      selectedOption === opt && 'border-amber-500 bg-amber-500/20 text-amber-900 dark:text-amber-300'
+                    )}
                     onClick={() => {
                       setSelectedOption(opt);
                       handleSubmit(opt);
                     }}
-                    className={cn(
-                      "flex items-center gap-3 w-full text-left p-3 rounded-lg border transition-all text-sm",
-                      selectedOption === opt 
-                        ? "border-primary bg-primary/10 text-primary" 
-                        : "border-border hover:border-primary/50 hover:bg-muted"
-                    )}
                   >
-                    {selectedOption === opt ? (
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
-                    ) : (
-                      <Circle className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    )}
-                    <span>{opt}</span>
-                  </button>
+                    {opt}
+                  </Button>
                 ))}
-              </div>
-            )}
-
-            {type === 'yes_no' && (
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1 border-border hover:border-primary hover:bg-primary/5 hover:text-primary"
-                  onClick={() => handleSubmit('Yes')}
-                >
-                  Yes
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1 border-border hover:border-destructive hover:bg-destructive/5 hover:text-destructive"
-                  onClick={() => handleSubmit('No')}
-                >
-                  No
-                </Button>
               </div>
             )}
 
@@ -103,17 +90,18 @@ export function SmartQuestion({ questionId, question, type, options, onSubmit, a
                 <Input
                   value={textAnswer}
                   onChange={(e) => setTextAnswer(e.target.value)}
-                  placeholder="Type your answer..."
-                  className="flex-1"
+                  placeholder="Type your response..."
+                  className="flex-1 text-xs h-9"
                 />
-                <Button type="submit" size="icon" disabled={!textAnswer.trim()}>
-                  <Send className="h-4 w-4" />
+                <Button type="submit" size="sm" disabled={!textAnswer.trim()} className="bg-slate-900 text-slate-50 dark:bg-amber-500 dark:text-slate-950 rounded-xl h-9 text-xs font-semibold">
+                  <Send className="h-3.5 w-3.5 mr-1" />
+                  Submit
                 </Button>
               </form>
             )}
           </>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }

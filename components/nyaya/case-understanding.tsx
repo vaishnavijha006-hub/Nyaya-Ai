@@ -153,17 +153,15 @@ export function CaseUnderstanding({ data, onEdit, className }: CaseUnderstanding
                 </div>
               </div>
             )}
-            {data.confidence !== undefined && (
-              <div className="sm:col-span-2 flex items-center justify-between mt-2 pt-2 border-t border-primary/10">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <BarChart3 className="h-3.5 w-3.5" />
-                  <span>AI Confidence Score</span>
-                </div>
-                <Badge variant={data.confidence > 80 ? "default" : data.confidence > 50 ? "secondary" : "outline"} className="text-[10px] h-5 px-1.5">
-                  {data.confidence}%
-                </Badge>
+            <div className="sm:col-span-2 flex items-center justify-between mt-2 pt-2 border-t border-border/50">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <ShieldAlert className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                <span>Assessment Status</span>
               </div>
-            )}
+              <Badge variant="outline" className="text-[10px] h-5 px-2 border-amber-500/30 text-amber-800 dark:text-amber-400">
+                Initial AI Assessment
+              </Badge>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

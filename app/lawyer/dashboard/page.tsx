@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import LawyerCaseOverview from '@/components/lawyer/lawyer-case-overview';
 import ConfirmedFacts from '@/components/lawyer/confirmed-facts';

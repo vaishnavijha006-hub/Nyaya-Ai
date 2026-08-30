@@ -50,7 +50,7 @@ _HINDI_LEGAL_MAP = {
     r'\bमामला\b': 'Case',
 }
 
-_CONFIDENCE_THRESHOLD = 0.20
+_CONFIDENCE_THRESHOLD = 0.40
 
 
 def get_indexed_acts() -> Dict[str, str]:

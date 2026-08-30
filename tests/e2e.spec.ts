@@ -4,15 +4,28 @@ import { getConfirmationLinkFromInbucket } from './utils/mail';
 test.describe('Zero-Trust Auth & Production Gate', () => {
     
     test('TEST 1 & 2: Signup and Login via Inbucket', async ({ page }) => {
+        page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+        page.on('pageerror', error => console.log('PAGE ERROR:', error.message));
+        page.on('requestfailed', request => console.log('FAILED URL:', request.url(), request.failure()?.errorText));
+        page.on('response', response => {
+            if (response.status() >= 400) console.log('BAD RESPONSE:', response.url(), response.status());
+        });
+        
         const testEmail = `e2e-${Date.now()}@localhost.test`;
         const testPassword = 'ZeroTrustPassword123!';
         
         await page.goto('/signup');
-        // Await the DOM to have the actual elements (this simulates the UI interaction)
-        // If elements don't exist, this fails natively, proving no mocks are used
         await page.fill('input[type="email"]', testEmail);
         await page.fill('input[type="password"]', testPassword);
-        await page.click('button[type="submit"]');
+        
+        // Wait for response to ensure it didn't fail
+        const [response] = await Promise.all([
+            page.waitForResponse(res => res.url().includes('/auth/v1/signup')),
+            page.click('button[type="submit"]')
+        ]);
+        
+        const responseBody = await response.json();
+        console.log('Signup API Response:', JSON.stringify(responseBody));
         
         // Wait for confirmation email to arrive in Inbucket
         const confirmationUrl = await getConfirmationLinkFromInbucket(testEmail);
@@ -22,7 +35,7 @@ test.describe('Zero-Trust Auth & Production Gate', () => {
         
         // Verify we reach the protected dashboard
         await expect(page).toHaveURL(/.*workspace/);
-        await expect(page.locator('text=Research Workspace')).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Research Workspace' })).toBeVisible();
     });
 
     test('TEST 3: Unauthenticated user -> protected route redirects to login', async ({ page }) => {

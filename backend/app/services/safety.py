@@ -2,7 +2,7 @@ import asyncio
 from typing import Dict, Any
 
 def analyze_safety(query: str) -> Dict[str, Any]:
-    emergency_keywords = ["help", "suicide", "emergency", "danger"]
+    emergency_keywords = ["suicide", "emergency", "in danger", "kill myself", "life threat"]
     if any(kw in query.lower() for kw in emergency_keywords):
         return {"requires_emergency_mode": True, "risk_level": "EMERGENCY"}
     return {"requires_emergency_mode": False, "risk_level": "NORMAL"}
@@ -32,7 +32,7 @@ class SafetyService:
         return {"status": "NORMAL"}
         
     async def _is_emergency_query(self, query: str) -> bool:
-        emergency_keywords = ["help", "suicide", "emergency", "danger"]
+        emergency_keywords = ["suicide", "emergency", "in danger", "kill myself", "life threat"]
         return any(kw in query.lower() for kw in emergency_keywords)
         
     async def _handle_emergency(self) -> Dict[str, Any]:

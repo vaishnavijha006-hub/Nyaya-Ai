@@ -128,7 +128,7 @@ function FIRGenerator() {
           success = true;
         }
       } catch (e) {
-        console.warn('Dedicated FIR endpoint failed, attempting fallback to /chat/:', e);
+        console.warn('Dedicated FIR endpoint failed, attempting fallback to /chat:', e);
       }
 
       // Fallback attempt: /chat/ endpoint with explicit FIR prompt if primary failed
@@ -143,7 +143,7 @@ function FIRGenerator() {
 - Incident Description: ${form.incident_description}
 Language requested: ${form.language}`;
 
-        const chatRes = await fetch(`${API_URL}/chat/`, {
+        const chatRes = await fetch(`${API_URL}/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ question: prompt, language: form.language }),

@@ -1,14 +1,25 @@
 export async function getConfirmationLinkFromInbucket(email: string): Promise<string> {
-    const searchUrl = `http://127.0.0.1:54324/api/v1/search?query=to:${email}`;
+    const searchUrl = `http://127.0.0.1:54324/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`;
     let messages = [];
     
-    // Poll for 10 seconds
-    for (let i = 0; i < 10; i++) {
-        const response = await fetch(searchUrl);
-        if (response.ok) {
-            const data = await response.json();
-            messages = data.messages || [];
-            if (messages.length > 0) break;
+    console.log(`Polling Mailpit for email: ${email}`);
+    
+    // Poll for 30 seconds
+    for (let i = 0; i < 30; i++) {
+        try {
+            const response = await fetch(searchUrl);
+            if (response.ok) {
+                const data = await response.json();
+                messages = data.messages || [];
+                if (messages.length > 0) {
+                    console.log(`Found email after ${i} seconds`);
+                    break;
+                }
+            } else {
+                console.log(`Mailpit search failed with status ${response.status}`);
+            }
+        } catch (e) {
+            console.log(`Fetch error: ${(e as Error).message}`);
         }
         await new Promise(resolve => setTimeout(resolve, 1000));
     }
@@ -24,14 +35,19 @@ export async function getConfirmationLinkFromInbucket(email: string): Promise<st
     const messageData = await messageResponse.json();
     const body = messageData.Text || "";
     
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    // Improved regex that doesn't capture trailing parentheses or quotes
+    const urlRegex = /(https?:\/\/[^\s\)"']+)/g;
     const urls = body.match(urlRegex);
     
     if (!urls || urls.length === 0) {
-        throw new Error("No confirmation link found in email");
+        console.error("Body:", body);
+        throw new Error("No confirmation link found in email body");
     }
     
-    // Extract the confirmation URL and rewrite the base URL to localhost:3000
     let url = urls[0];
+    console.log(`Extracted confirmation link: ${url}`);
+    
+    // Depending on local setup, we may need to replace the Supabase API base 
+    // with the one Next.js will proxy, but standard Supabase redirects correctly.
     return url;
 }

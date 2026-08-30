@@ -12,6 +12,8 @@ import logging
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
+from typing import Optional
+
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, BackgroundTasks, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse

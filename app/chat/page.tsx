@@ -19,6 +19,15 @@ import { EmptyState } from '@/components/nyaya/empty-state';
 import { LegalSourceCard } from '@/components/nyaya/legal-source-card';
 import { LegalAnalysis } from '@/components/nyaya/legal-analysis';
 import { MemoryConflict } from '@/components/nyaya/memory-conflict';
+import {
+  JourneyProgressBar,
+  DocumentRequestCard,
+  DocumentVerificationCard,
+  LegalAidEligibleCard,
+  LawyerSuggestionCard,
+  CaseAnalysisCard,
+  ActionPlanCard,
+} from '@/components/nyaya/legal-journey-cards';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -610,6 +619,10 @@ function ChatPanel({
 
                   {isStreamingActive && (
                     <div className="space-y-4">
+                      {/* Journey Progress Bar */}
+                      {streamState.journeyStage && (
+                        <JourneyProgressBar stage={streamState.journeyStage} />
+                      )}
                       {streamState.memoryConflict && (
                         <MemoryConflict 
                           conflict={streamState.memoryConflict} 
@@ -621,8 +634,41 @@ function ChatPanel({
                       {streamState.caseClassification && (
                         <CaseUnderstanding data={streamState.caseClassification} />
                       )}
+                      {/* Document Request Card */}
+                      {streamState.documentRequest && (
+                        <DocumentRequestCard
+                          data={streamState.documentRequest}
+                          onUploadClick={() => {
+                            toast.info('Use the attachment (📎) button below to upload documents via PDF Upload.');
+                          }}
+                        />
+                      )}
+                      {/* Document Verification Card */}
+                      {streamState.documentVerified && (
+                        <DocumentVerificationCard data={streamState.documentVerified} />
+                      )}
                       {streamState.legalAnalysis && (
                         <LegalAnalysis data={streamState.legalAnalysis} />
+                      )}
+                      {/* Eligibility Question */}
+                      {streamState.eligibilityQuestion && (
+                        <SmartQuestion
+                          questionId={streamState.eligibilityQuestion.question_id || 'eligibility'}
+                          question={streamState.eligibilityQuestion.question || ''}
+                          type={streamState.eligibilityQuestion.type || 'text'}
+                          options={streamState.eligibilityQuestion.options}
+                          onSubmit={(answer) => {
+                            submitAnswer(answer);
+                          }}
+                        />
+                      )}
+                      {/* Legal Aid Eligible — DLSA Card */}
+                      {streamState.legalAidEligible && (
+                        <LegalAidEligibleCard data={streamState.legalAidEligible} />
+                      )}
+                      {/* Legal Aid Ineligible — Lawyer Network Card */}
+                      {streamState.legalAidIneligible && (
+                        <LawyerSuggestionCard data={streamState.legalAidIneligible} />
                       )}
                       {streamState.legalSources && streamState.legalSources.length > 0 && (
                         <div className="space-y-3">
@@ -640,6 +686,14 @@ function ChatPanel({
                         error={streamState.error}
                         detectedLanguage={streamState.detectedLanguage}
                       />
+                      {/* Case Analysis — Cluster/PIL/Lok Adalat */}
+                      {streamState.caseAnalysis && (
+                        <CaseAnalysisCard data={streamState.caseAnalysis} />
+                      )}
+                      {/* Final Action Plan */}
+                      {streamState.actionPlan && (
+                        <ActionPlanCard data={streamState.actionPlan} />
+                      )}
                       {streamState.followUpQuestions?.map((q: any, i: number) => (
                         <SmartQuestion
                           key={i}

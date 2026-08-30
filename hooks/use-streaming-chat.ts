@@ -167,6 +167,29 @@ export interface StreamState {
   dataCorrectionApplied: any | null;
   /** Privacy Access Logged */
   privacyAccessLogged: any | null;
+  /** Document Memory Conflict */
+  documentMemoryConflict: any | null;
+  // ── Legal Journey State Fields (new) ─────────────────────────────────────
+  /** Current journey stage (GATHER_DETAILS, REQUEST_DOCUMENTS, etc.) */
+  journeyStage: string | null;
+  /** Document request: list of documents the user should upload */
+  documentRequest: any | null;
+  /** Document verification results */
+  documentVerified: any | null;
+  /** Legal analysis (laws, rights, judgments) */
+  legalAnalysisUpdate: any | null;
+  /** Current eligibility question */
+  eligibilityQuestion: any | null;
+  /** Legal aid result (eligible/not) */
+  legalAidResult: any | null;
+  /** Legal aid eligible path (DLSA info) */
+  legalAidEligible: any | null;
+  /** Legal aid ineligible path (lawyers) */
+  legalAidIneligible: any | null;
+  /** Case analysis (cluster, PIL, Lok Adalat) */
+  caseAnalysis: any | null;
+  /** Final personalized action plan */
+  actionPlan: any | null;
 }
 
 const INITIAL_STATE: StreamState = {
@@ -211,8 +234,7 @@ const INITIAL_STATE: StreamState = {
   preventionChecklist: null,
   riskHistory: null,
   documentProcessing: null,
-  documentMemoryConflict: null,
-  decisionAuditStarted: null,
+    decisionAuditStarted: null,
   legalOutputValidated: null,
   legalOutputBlocked: null,
   humanReviewRequired: null,
@@ -241,6 +263,18 @@ const INITIAL_STATE: StreamState = {
   dataRetentionRequired: null,
   dataCorrectionApplied: null,
   privacyAccessLogged: null,
+  documentMemoryConflict: null,
+  // Legal Journey fields
+  journeyStage: null,
+  documentRequest: null,
+  documentVerified: null,
+  legalAnalysisUpdate: null,
+  eligibilityQuestion: null,
+  legalAidResult: null,
+  legalAidEligible: null,
+  legalAidIneligible: null,
+  caseAnalysis: null,
+  actionPlan: null,
 };
 
 export interface UseStreamingChatOptions {
@@ -249,6 +283,7 @@ export interface UseStreamingChatOptions {
   language?: string;
   /** Set to a conversation-specific value if you need to key renders */
   conversationId?: string | null;
+  history?: Array<{ role: string; content: string }>;
 }
 
 /**
@@ -262,7 +297,7 @@ export interface UseStreamingChatOptions {
  *   <button onClick={start}>Ask</button>
  *   <p>{state.streamedText}</p>
  */
-export function useStreamingChat({ question, audience = 'default', language = 'auto' }: UseStreamingChatOptions) {
+export function useStreamingChat({ question, audience = 'default', language = 'auto', conversationId, history }: UseStreamingChatOptions) {
   const [state, setState] = React.useState<StreamState>(INITIAL_STATE);
   const abortRef = React.useRef<AbortController | null>(null);
 
@@ -284,10 +319,11 @@ export function useStreamingChat({ question, audience = 'default', language = 'a
   }, []);
 
   const start = React.useCallback(
-    async (overrideQuestion?: string, overrideAudience?: Audience, overrideLanguage?: string) => {
+    async (overrideQuestion?: string, overrideAudience?: Audience, overrideLanguage?: string, overrideHistory?: Array<{ role: string; content: string }>) => {
       const q = overrideQuestion ?? question;
       const aud = overrideAudience ?? audience;
       const lang = overrideLanguage ?? language;
+      const hist = overrideHistory ?? history;
       if (!q.trim()) return;
 
       // Cancel any in-flight request
@@ -305,10 +341,9 @@ export function useStreamingChat({ question, audience = 'default', language = 'a
         const response = await fetch(`${API_URL}/chat/stream`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: q, audience: aud, language: lang }),
+          body: JSON.stringify({ question: q, audience: aud, language: lang, session_id: conversationId, history: hist }),
           signal: controller.signal,
         });
-
         if (!response.ok) {
           throw new Error(`Stream request failed: ${response.status} ${response.statusText}`);
         }
@@ -753,6 +788,64 @@ export function useStreamingChat({ question, audience = 'default', language = 'a
               setState((prev) => ({
                 ...prev,
                 privacyAccessLogged: sanitizeEvent(event.data || event),
+              }));
+            // ── Legal Journey Events ──────────────────────────────────────────
+            } else if (type === 'journey_stage') {
+              setState((prev) => ({
+                ...prev,
+                journeyStage: (event.journey_stage as string) || null,
+                statusMessage: event.message as string || null,
+              }));
+            } else if (type === 'document_request') {
+              setState((prev) => ({
+                ...prev,
+                documentRequest: sanitizeEvent(event.journey_data || event),
+                statusMessage: 'Documents required for your case.',
+              }));
+            } else if (type === 'document_verified') {
+              setState((prev) => ({
+                ...prev,
+                documentVerified: sanitizeEvent(event.journey_data || event),
+              }));
+            } else if (type === 'legal_analysis_update') {
+              setState((prev) => ({
+                ...prev,
+                legalAnalysisUpdate: sanitizeEvent(event.analysis || event.journey_data || event),
+                legalAnalysis: sanitizeEvent(event.analysis || event.journey_data || event),
+              }));
+            } else if (type === 'eligibility_question') {
+              setState((prev) => ({
+                ...prev,
+                eligibilityQuestion: sanitizeEvent(event.journey_data || event),
+                statusMessage: 'Eligibility question',
+              }));
+            } else if (type === 'legal_aid_result') {
+              setState((prev) => ({
+                ...prev,
+                legalAidResult: sanitizeEvent(event.journey_data || event),
+              }));
+            } else if (type === 'legal_aid_eligible') {
+              setState((prev) => ({
+                ...prev,
+                legalAidEligible: sanitizeEvent(event.journey_data || event),
+                statusMessage: 'You may be eligible for government legal aid.',
+              }));
+            } else if (type === 'legal_aid_ineligible') {
+              setState((prev) => ({
+                ...prev,
+                legalAidIneligible: sanitizeEvent(event.journey_data || event),
+                statusMessage: 'Lawyer recommendations ready.',
+              }));
+            } else if (type === 'case_analysis') {
+              setState((prev) => ({
+                ...prev,
+                caseAnalysis: sanitizeEvent(event.journey_data || event),
+              }));
+            } else if (type === 'action_plan') {
+              setState((prev) => ({
+                ...prev,
+                actionPlan: sanitizeEvent(event.journey_data || event),
+                statusMessage: 'Your legal action plan is ready.',
               }));
             }
             // Unknown event types are silently ignored for forward-compatibility

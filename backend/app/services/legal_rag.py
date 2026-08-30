@@ -50,12 +50,19 @@ async def run_legal_rag_stream(
     """
     yield json.dumps({"type": "legal_retrieval_started", "message": "Initiating verified legal retrieval..."})
     
-    query_info = build_legal_query(case_info, question)
-    docs = await retrieve_legal_documents(query_info)
+    # Use real RAG retriever instead of stub
+    from app.rag.retriever import retrieve
+    from fastapi.concurrency import run_in_threadpool
+    
+    # Augment query with case info
+    search_query = f"{question} | Context: {case_info.get('issue', '')} | Location: {case_info.get('location', '')}"
+    
+    docs = await run_in_threadpool(retrieve, search_query, k=5)
     
     yield json.dumps({"type": "legal_sources_found", "count": len(docs), "message": f"Found {len(docs)} legal sources."})
     
-    ranked_docs = rerank_documents(question, docs)
+    # We don't need rerank_documents if retrieve already does fusion/ranking
+    ranked_docs = [{"content_preview": doc.page_content, "metadata": doc.metadata} for doc in docs]
     
     yield json.dumps({"type": "legal_analysis", "message": "Analyzing cross-references and legal principles..."})
     

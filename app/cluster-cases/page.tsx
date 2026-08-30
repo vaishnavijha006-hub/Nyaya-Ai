@@ -158,7 +158,7 @@ function ClusterPreview() {
       const prompt = `Draft a formal Public Interest Litigation (PIL) or Joint Class Action Legal Notice against: ${form.opposing}. The issue is: ${form.description}. Complainant: ${form.name}.`;
       
       try {
-        const chatRes = await fetch(`${API_URL}/chat/`, {
+        const chatRes = await fetch(`${API_URL}/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ question: prompt, language: "en" }),

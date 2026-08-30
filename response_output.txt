@@ -1,0 +1,2 @@
+data: {"type": "token", "content": "Could you tell me which state and city the property is located in?"}
+data: {"type": "done"}

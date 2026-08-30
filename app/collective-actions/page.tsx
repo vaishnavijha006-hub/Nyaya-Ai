@@ -1,12 +1,7 @@
+'use client';
 import React from 'react';
-import { Metadata } from 'next';
 import { AppShell } from '@/components/nyaya/app-shell';
 import { CollectiveActionCenter } from '@/components/nyaya/collective-action-center';
-
-export const metadata: Metadata = {
-  title: 'Collective Actions | Nyaya AI',
-  description: 'Join collective legal actions to strengthen your claim.',
-};
 
 export default function CollectiveActionsPage() {
   return (

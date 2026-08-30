@@ -12,7 +12,10 @@ try:
 except ImportError:
     GEMINI_AVAILABLE = False
 
-load_dotenv()
+import os
+from pathlib import Path
+dotenv_path = Path(__file__).resolve().parent.parent.parent / ".env"
+load_dotenv(dotenv_path)
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +48,7 @@ def _gemini_fallback_stream(system_prompt: str, user_prompt: str):
         client = google_genai.Client(api_key=gemini_key)
         full_prompt = f"{system_prompt}\n\n{user_prompt}"
         response = client.models.generate_content_stream(
-            model="gemini-2.0-flash",
+            model="gemini-1.5-flash",
             contents=full_prompt,
         )
         for chunk in response:
@@ -65,7 +68,7 @@ def _gemini_fallback(system_prompt: str, user_prompt: str) -> str:
         client = google_genai.Client(api_key=gemini_key)
         full_prompt = f"{system_prompt}\n\n{user_prompt}"
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-3.6-flash",
             contents=full_prompt,
         )
         return response.text
@@ -169,18 +172,17 @@ def generate_rag_system_prompt(lang_code: str) -> str:
         f"CRITICAL OVERRIDE RULE: Output language MUST BE {lang_name.upper()}.\n"
         f"{extra_instruction}\n"
         f"Even if the question or legal documents are written in English, translate the explanation and produce the response in {lang_name}.\n\n"
-        f"STRUCTURE REQUIREMENT:\n"
-        f"Organize your answer into the following sections in {lang_name}:\n"
-        f"1. Relevant Act / Statutory Provisions\n"
-        f"2. Relevant Judgment / Precedents\n"
-        f"3. Comprehensive Legal Explanation\n"
-        f"4. Practical Meaning & Real-World Impact\n\n"
-        f"RULES:\n"
-        f"1. Answer ONLY using information from the context.\n"
-        f"2. Do NOT translate formal proper names like case titles (e.g., 'K.S. Puttaswamy v. Union of India') or section numbers (e.g. 'Section 1'). Keep citations exact.\n"
-        f"3. All explanations, headings, and details must be in {lang_name}.\n"
-        f"4. DO NOT repeat the user's question. DO NOT output conversational fillers like 'Kya hua' repeatedly. DO NOT output translation pairs in brackets.\n"
-        f"5. PREVENTION ENGINE DIRECTIVE: NEVER output deterministic predictions about the outcome of a case (e.g., 'You will win', 'You will lose'). Always use probabilistic language and advise consulting a professional."
+        f"REQUIRED RESPONSE STRUCTURE:\n"
+        f"Every legal explanation MUST distinguish these 3 sections clearly:\n"
+        f"1. WHAT THE SOURCE SAYS: State the exact statutory section, article, or legal precedent cited from the retrieved context.\n"
+        f"2. WHAT IT MAY MEAN FOR THE USER: Explain in plain language what this provision means for the user's situation.\n"
+        f"3. PRACTICAL NEXT STEP: Provide actionable practical guidance for the user.\n\n"
+        f"STRICT HALLUCINATION PREVENTION RULES:\n"
+        f"1. Answer ONLY using facts from the provided context. If sufficient verified evidence cannot be retrieved from the context, state clearly: 'The system does not have enough verified legal information in its knowledge base for this query.'\n"
+        f"2. NEVER invent section numbers, statutory provisions, or judgment citations that do not exist in the context.\n"
+        f"3. Do NOT translate formal proper names like case titles (e.g., 'K.S. Puttaswamy v. Union of India') or section numbers (e.g. 'Section 138'). Keep citations exact.\n"
+        f"4. All explanations, headings, and details must be in {lang_name}.\n"
+        f"5. DO NOT output deterministic outcome guarantees (e.g. 'You will win'). Use non-binding advisory phrasing."
     )
 
 

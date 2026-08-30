@@ -28,6 +28,10 @@ from .middleware.guard import GuardMiddleware
 # Initialize Limiter
 limiter = Limiter(key_func=get_remote_address)
 
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
 app = FastAPI(
     title="Nyaya AI API",
     version="1.0.0",
@@ -37,6 +41,42 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+@app.exception_handler(StarletteHTTPException)
+async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": True,
+            "status": exc.status_code,
+            "detail": exc.detail,
+        },
+        headers=getattr(exc, "headers", None)
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": True,
+            "status": 422,
+            "detail": exc.errors(),
+        }
+    )
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    import logging
+    logging.getLogger("app.main").error(f"[Unhandled Error] {type(exc).__name__}: {str(exc)}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": True,
+            "status": 500,
+            "detail": "Internal Server Error",
+        }
+    )
+
 # Validate environment fast on startup
 validate_environment()
 
@@ -44,8 +84,8 @@ validate_environment()
 # Using regex only to avoid Starlette conflict between allow_origins and allow_origin_regex
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -54,10 +94,21 @@ app.add_middleware(
 app.add_middleware(GuardMiddleware)
 
 # Register routers after CORSMiddleware
+from app.api.collective_actions import router as collective_actions_router
+from app.api.legal_aid import router as legal_aid_router
+from app.api.lawyers import router as lawyers_router
+from app.api.legal_journey import router as legal_journey_router
+from app.api.cases import router as cases_router
+
 app.include_router(chat_router)
 app.include_router(llm_router)
 app.include_router(research_router)
 app.include_router(rti_router)
+app.include_router(collective_actions_router)
+app.include_router(legal_aid_router)
+app.include_router(lawyers_router)
+app.include_router(legal_journey_router)
+app.include_router(cases_router)
 app.include_router(legal_notice_router)
 app.include_router(fir_router)
 app.include_router(speech_router)

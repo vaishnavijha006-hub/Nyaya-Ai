@@ -24,46 +24,9 @@ Ensure the output is strictly valid JSON.
 """
 
 def extract_case_info(user_input: str, history: str = "", current_state: dict = None) -> dict:
-    client = get_groq_client()
-    
-    prompt = f"Previous State:\n{json.dumps(current_state or {})}\n\nHistory:\n{history}\n\nUser Input:\n{user_input}\n\nPlease merge the new input with the previous state and extract the case information as JSON."
-    
-    try:
-        response = client.chat.completions.create(
-            model=PRIMARY_MODEL,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": prompt}
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.1
-        )
-        content = response.choices[0].message.content
-        return json.loads(content)
-    except Exception as exc:
-        if _is_rate_limit_error(exc):
-            logger.warning(f"Groq rate limited in extract_case_info, falling back to Gemini")
-            # Gemini fallback doesn't support response_format strict json easily without specific prompt tweaks, 
-            # but we can try basic string extraction
-            fallback_prompt = SYSTEM_PROMPT + "\n\nOUTPUT ONLY VALID JSON.\n\n" + prompt
-            raw_text = _gemini_fallback(fallback_prompt, "")
-            # attempt to parse JSON from raw_text
-            try:
-                # Basic cleanup
-                cleaned = raw_text.strip()
-                if cleaned.startswith("```json"):
-                    cleaned = cleaned[7:-3]
-                elif cleaned.startswith("```"):
-                    cleaned = cleaned[3:-3]
-                return json.loads(cleaned)
-            except Exception as e:
-                logger.error(f"Failed to parse Gemini fallback JSON: {e}")
-        else:
-            logger.error(f"extract_case_info failed: {exc}")
-        
-        # Return fallback state if all fails
-        return current_state or {
-            "classification_status": "INCOMPLETE", 
-            "confidence": 0.0,
-            "missing_information": []
-        }
+    """
+    Delegates to the new case_intake module for real LLM-based extraction.
+    Kept here for backward compatibility with other callers.
+    """
+    from app.services.case_intake import extract_case_info_real
+    return extract_case_info_real(user_input, history, current_state)

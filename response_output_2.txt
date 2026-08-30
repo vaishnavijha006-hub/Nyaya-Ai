@@ -1,0 +1,2 @@
+data: {"type": "token", "content": "Could you share the lease agreement (or its key details"}
+data: {"type": "done"}

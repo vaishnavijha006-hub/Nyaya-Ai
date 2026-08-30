@@ -164,7 +164,20 @@ export function useConversation(conversationId: string | null) {
         sourceCitations: citations,
         detected_language: detectedLanguage,
       };
-      setMessages((prev) => [...prev, assistantMsg]);
+      setMessages((prev) => {
+        const newMsgs = [...prev];
+        // If user message is missing (wiped by load() running during stream), add it back
+        const hasUserMsg = newMsgs.some(m => m.role === 'user' && m.content === userText);
+        if (!hasUserMsg) {
+          newMsgs.push({
+            id: crypto.randomUUID(),
+            role: 'user',
+            content: userText,
+          });
+        }
+        newMsgs.push(assistantMsg);
+        return newMsgs;
+      });
 
       // Persist user message to Supabase
       const { error: uErr } = await supabase.from('messages').insert({

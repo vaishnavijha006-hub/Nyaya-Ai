@@ -33,7 +33,7 @@ export function CaseMemory({ conflicts = defaultConflicts, className = "" }: Cas
     if (activeConflicts.length > 0) {
       setActiveTab("conflicts")
     }
-  }, [])
+  }, [activeConflicts.length])
 
   const handleResolveConflict = (id: string, action: string) => {
     console.log(`Resolved conflict ${id} with action: ${action}`)

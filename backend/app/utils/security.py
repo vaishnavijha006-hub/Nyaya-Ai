@@ -163,3 +163,33 @@ def validate_file_upload(file_filename: str, file_size: int, content_type: str):
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"File size exceeds maximum limit of 25 MB ({file_size} bytes)."
         )
+
+
+def mask_sensitive_log(text: str) -> str:
+    """
+    Mask sensitive secrets, API keys, JWT Bearer tokens, and Aadhaar/PAN identifiers from logs.
+    """
+    if not text:
+        return ""
+    # Mask Bearer tokens
+    masked = re.sub(r'Bearer\s+[A-Za-z0-9\-\_\.]+', 'Bearer [MASKED]', text, flags=re.I)
+    # Mask API keys
+    masked = re.sub(r'(gsk_[A-Za-z0-9]{20,})', '[MASKED_GROQ_KEY]', masked)
+    masked = re.sub(r'(sbp_[A-Za-z0-9]{20,})', '[MASKED_SUPABASE_KEY]', masked)
+    # Mask 12-digit Aadhaar & 10-char PAN
+    masked = re.sub(r'\b\d{4}\s?\d{4}\s?\d{4}\b', '[MASKED_AADHAAR]', masked)
+    masked = re.sub(r'\b[A-Z]{5}\d{4}[A-Z]{1}\b', '[MASKED_PAN]', masked)
+    return masked
+
+
+def require_authenticated_user(user: Optional[AuthenticatedUser] = Depends(verify_supabase_jwt)) -> AuthenticatedUser:
+    """
+    Dependency requiring a valid authenticated user.
+    """
+    if not user or not user.id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required for this operation."
+        )
+    return user
+

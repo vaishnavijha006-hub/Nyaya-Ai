@@ -174,8 +174,30 @@ async def generate_legal_notice(request: Request, body: LegalNoticeRequest):
         return LegalNoticeResponse(notice=notice_text, language=target_lang)
 
     except Exception as exc:
-        logger.error("Failed to generate legal notice: %s", exc, exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"LLM generation failed: {str(exc)}",
+        logger.warning("Groq call failed, attempting fallback: %s", exc)
+        from app.services.llm import _gemini_fallback, _is_rate_limit_error
+        fallback_text = _gemini_fallback(system_prompt, user_content)
+        if fallback_text and "Service temporarily busy" not in fallback_text:
+            return LegalNoticeResponse(notice=fallback_text, language=target_lang)
+
+        # Deterministic Structured Legal Notice Fallback Template
+        notice_template = (
+            f"LEGAL NOTICE\n\n"
+            f"BY REGISTERED POST A.D. / SPEED POST\n\n"
+            f"Date: [Current Date]\n\n"
+            f"TO:\n{body.recipient_name}\n{body.recipient_address}\n\n"
+            f"FROM:\n{body.sender_name}\n{body.sender_address}\n\n"
+            f"SUBJECT: LEGAL NOTICE FOR {body.subject.upper()}\n\n"
+            f"Sir/Madam,\n\n"
+            f"Under instructions from my client, {body.sender_name}, residing at {body.sender_address}, "
+            f"I hereby serve upon you this Legal Notice:\n\n"
+            f"1. FACTS OF THE CASE:\n{body.case_details}\n\n"
+            f"2. LEGAL DEMAND:\n{body.legal_demand}\n\n"
+            f"3. STIPULATED PERIOD FOR COMPLIANCE:\n"
+            f"You are hereby called upon to comply with the above demand within a period of {body.deadline_days} days "
+            f"from the receipt of this notice, failing which my client shall be constrained to initiate appropriate "
+            f"civil and criminal legal proceedings against you in the competent court of law, at your sole risk and consequences.\n\n"
+            f"Yours faithfully,\n\n"
+            f"Advocate for {body.sender_name}"
         )
+        return LegalNoticeResponse(notice=notice_template, language=target_lang)

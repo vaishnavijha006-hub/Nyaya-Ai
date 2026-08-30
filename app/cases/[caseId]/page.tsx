@@ -2,6 +2,9 @@
 
 import React, { useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import { ActionCenter } from '@/components/nyaya/case-dashboard/action-center';
+import { CaseActivityTimeline } from '@/components/nyaya/case-dashboard/case-activity-timeline';
+import { ResolutionStatus } from '@/components/nyaya/case-dashboard/resolution-status';
 import { CaseProgress } from '@/components/nyaya/case-progress';
 import { CaseTimeline } from '@/components/nyaya/case-timeline';
 import { CaseTasks } from '@/components/nyaya/case-tasks';
@@ -27,31 +30,31 @@ export default function CaseDetailPage() {
   });
 
   return (
-    <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div className="flex justify-between items-start mb-8">
+    <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-8">
+      <div className="flex justify-between items-start border-b border-border/60 pb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Case Details: {caseId}</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">Manage and track your case progress</p>
+          <h1 className="text-2xl font-bold font-display text-gray-900 dark:text-white">Case Details: {caseId}</h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Structured Action &amp; Resolution Command Center</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <a 
-            href={`/cases/${caseId}/documents`}
-            className="flex items-center gap-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground px-4 py-2 rounded-md font-medium transition-colors border"
+            href={`/cases/${caseId}/case-package`}
+            className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-xs"
           >
-            Evidence Hub
+            Case Package Dossier
           </a>
-          <button 
-            onClick={() => start()}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
-          >
-            <Play className="h-4 w-4" />
-            {state.isStreaming ? 'Checking...' : 'Check for Updates'}
-          </button>
         </div>
       </div>
 
+      {/* Resolution Pathway Status Progress */}
+      <ResolutionStatus />
+
+      {/* Phase 5 Action Center */}
+      <ActionCenter caseId={caseId} />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
+          <CaseActivityTimeline />
           {/* Real-time Engine Updates */}
           {(state.authorityResponseAnalysis || state.deadlineDetected || state.escalationRecommendation || state.resolutionConfirmation) && (
             <section className="space-y-4">

@@ -1,68 +1,44 @@
 'use client';
 
 import * as React from 'react';
-import { Calendar, Clock, AlertTriangle } from 'lucide-react';
+import { Clock, Calendar, AlertCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
-interface DelayTimelineSectionProps {
-  hearingsCount?: number;
-  adjournmentsCount?: number;
-  elapsedTime?: string;
-  latestHearingDate?: string;
-  reasonRecorded?: string;
-  className?: string;
-}
+export function DelayTimelineSection({ className }: { className?: string }) {
+  const hearings = [
+    { num: 1, date: '14 Feb 2026', purpose: 'First Appearance & Notice Service', outcome: 'Notice Issued', adjournment: 'None' },
+    { num: 2, date: '28 Mar 2026', purpose: 'Written Statement Filing', outcome: 'Adjourned', adjournment: 'Party unavailable' },
+    { num: 3, date: '15 May 2026', purpose: 'Frame Issues & Evidence', outcome: 'Adjourned', adjournment: 'Awaiting bank documents' },
+  ];
 
-export function DelayTimelineSection({
-  hearingsCount = 6,
-  adjournmentsCount = 2,
-  elapsedTime = '4 months',
-  latestHearingDate = '12 Aug 2026',
-  reasonRecorded = 'Awaiting document submission by respondent',
-  className,
-}: DelayTimelineSectionProps) {
   return (
-    <div className={cn('legal-card p-5 space-y-3', className)}>
-      <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
+    <div className={cn('legal-card p-5 space-y-4', className)}>
+      <div className="flex items-center justify-between border-b border-border/60 pb-3">
         <div className="flex items-center gap-2">
           <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
           <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
-            Case Timeline & Hearing History
+            Case Delay &amp; Hearing Log
           </h3>
         </div>
-
-        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-          Factual Intelligence
-        </span>
+        <Badge variant="outline" className="border-amber-500/30 text-amber-800 dark:text-amber-400 text-[10px]">
+          3 Hearings Recorded
+        </Badge>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-center">
-        <div className="p-2.5 rounded-lg border border-border/70 bg-card">
-          <span className="text-[10px] text-muted-foreground">Elapsed Time</span>
-          <p className="font-bold text-foreground mt-0.5">{elapsedTime}</p>
-        </div>
-
-        <div className="p-2.5 rounded-lg border border-border/70 bg-card">
-          <span className="text-[10px] text-muted-foreground">Hearings</span>
-          <p className="font-bold text-foreground mt-0.5">{hearingsCount}</p>
-        </div>
-
-        <div className="p-2.5 rounded-lg border border-border/70 bg-card">
-          <span className="text-[10px] text-muted-foreground">Adjournments</span>
-          <p className="font-bold text-foreground mt-0.5">{adjournmentsCount}</p>
-        </div>
-
-        <div className="p-2.5 rounded-lg border border-border/70 bg-card">
-          <span className="text-[10px] text-muted-foreground">Latest Hearing</span>
-          <p className="font-bold text-foreground mt-0.5">{latestHearingDate}</p>
-        </div>
-      </div>
-
-      <div className="text-xs bg-muted/40 p-2.5 rounded-lg border border-border/50 space-y-0.5">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-          Latest Recorded Adjournment Indicator:
-        </span>
-        <p className="text-foreground/90 leading-relaxed font-medium">{reasonRecorded}</p>
+      <div className="space-y-3 text-xs">
+        {hearings.map((h) => (
+          <div key={h.num} className="p-3 rounded-xl border border-border/80 bg-card space-y-1">
+            <div className="flex justify-between font-bold text-foreground">
+              <span>Hearing {h.num} — {h.purpose}</span>
+              <span className="text-[10px] text-muted-foreground">{h.date}</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Outcome: <span className="font-semibold text-foreground">{h.outcome}</span>
+              {h.adjournment !== 'None' && ` • Reason: ${h.adjournment}`}
+            </p>
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -3,8 +3,18 @@
 import React, { useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { ActionCenter } from '@/components/nyaya/case-dashboard/action-center';
+import { ResolutionPathwaysSection } from '@/components/nyaya/case-dashboard/resolution-pathways-section';
+import { DocumentPreparationSection } from '@/components/nyaya/case-dashboard/document-preparation-section';
+import { ReadinessOverview } from '@/components/nyaya/case-dashboard/readiness-overview';
+import { ResolutionTimeline } from '@/components/nyaya/case-dashboard/resolution-timeline';
 import { CaseActivityTimeline } from '@/components/nyaya/case-dashboard/case-activity-timeline';
 import { ResolutionStatus } from '@/components/nyaya/case-dashboard/resolution-status';
+import { ActionWorkflow } from '@/components/nyaya/action/action-workflow';
+import { CaseTrustSummary } from '@/components/nyaya/trust/case-trust-summary';
+import { FactConflictPanel } from '@/components/nyaya/trust/fact-conflict-panel';
+import { ExplainRecommendation } from '@/components/nyaya/trust/explain-recommendation';
+import { LegalSourceCard } from '@/components/nyaya/trust/legal-source-card';
+import { CaseAuditTimeline } from '@/components/nyaya/trust/case-audit-timeline';
 import { CaseProgress } from '@/components/nyaya/case-progress';
 import { CaseTimeline } from '@/components/nyaya/case-timeline';
 import { CaseTasks } from '@/components/nyaya/case-tasks';
@@ -49,11 +59,34 @@ export default function CaseDetailPage() {
       {/* Resolution Pathway Status Progress */}
       <ResolutionStatus />
 
+      {/* Phase 6 Trust Summary & Fact Conflict Panel */}
+      <CaseTrustSummary />
+      <FactConflictPanel />
+
       {/* Phase 5 Action Center */}
       <ActionCenter caseId={caseId} />
 
+      {/* Transparent Explainability */}
+      <ExplainRecommendation />
+
+      {/* Action Workflow System */}
+      <ActionWorkflow />
+
+      {/* Resolution Pathways Grid */}
+      <ResolutionPathwaysSection caseId={caseId} />
+
+      {/* Statutory Source vs AI Interpretation */}
+      <LegalSourceCard />
+
+      {/* Readiness & Documents */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <ReadinessOverview />
+        <DocumentPreparationSection />
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
+          <CaseAuditTimeline />
           <CaseActivityTimeline />
           {/* Real-time Engine Updates */}
           {(state.authorityResponseAnalysis || state.deadlineDetected || state.escalationRecommendation || state.resolutionConfirmation) && (

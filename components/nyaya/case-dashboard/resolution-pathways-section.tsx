@@ -2,113 +2,84 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Scale, Users, FileText, Gavel, ShieldCheck, ArrowRight } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Scale, ArrowRight, Building2, Shield, FileText, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-
-export interface PathwayItem {
-  id: string;
-  title: string;
-  type: 'SETTLEMENT' | 'LEGAL_AID' | 'MEDIATION' | 'COLLECTIVE' | 'LITIGATION';
-  description: string;
-  whyApplies: string;
-  recommended?: boolean;
-  ctaText: string;
-  ctaHref: string;
-}
 
 interface ResolutionPathwaysSectionProps {
   caseId?: string;
-  pathways?: PathwayItem[];
   className?: string;
 }
 
-const DEFAULT_PATHWAYS: PathwayItem[] = [
-  {
-    id: 'pw-1',
-    title: 'Pre-Litigation Legal Notice & Settlement',
-    type: 'SETTLEMENT',
-    description: 'Issue a formal, statutory legal notice to the landlord demanding deposit refund within 15 days before court filing.',
-    whyApplies: 'Core facts are documented (rent agreement & bank receipt available); settlement potential is high.',
-    recommended: true,
-    ctaText: 'Draft Legal Notice',
-    ctaHref: '/legal-notice',
-  },
-  {
-    id: 'pw-2',
-    title: 'DLSA Legal Aid Assistance',
-    type: 'LEGAL_AID',
-    description: 'Apply for free legal representation under the Legal Services Authorities Act, 1987.',
-    whyApplies: 'Available if annual income falls below state legal aid threshold.',
-    ctaText: 'Check Eligibility',
-    ctaHref: '/lawyers',
-  },
-  {
-    id: 'pw-3',
-    title: 'Lok Adalat / Pre-litigation Mediation',
-    type: 'MEDIATION',
-    description: 'Present dispute before a District Legal Services Authority (DLSA) mediator for rapid binding settlement.',
-    whyApplies: 'Low cost, non-adversarial, and legally binding under Section 21 of LSA Act.',
-    ctaText: 'Explore Mediation',
-    ctaHref: '/lawyers',
-  },
-];
+export function ResolutionPathwaysSection({ caseId = 'case-1', className }: ResolutionPathwaysSectionProps) {
+  const pathways = [
+    {
+      title: 'Pre-Litigation Settlement',
+      why: 'Suitable when dispute is document-supported and parties are identifiable.',
+      readiness: 'High Readiness',
+      preparation: 'Rent Agreement & Payment Receipt attached.',
+      ctaText: 'Start Settlement',
+      ctaHref: `/cases/${caseId}/settlement`,
+      badgeColor: 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-400 font-bold',
+    },
+    {
+      title: 'Mediation / Lok Adalat (ADR)',
+      why: 'Binding conciliation decree without court fees under Legal Services Authorities Act.',
+      readiness: 'Available',
+      preparation: 'DLSA pre-litigation application checklist ready.',
+      ctaText: 'Explore ADR',
+      ctaHref: `/cases/${caseId}/adr`,
+      badgeColor: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 font-semibold',
+    },
+    {
+      title: 'Government Legal Aid (DLSA)',
+      why: 'Free advocate assignment for income categories under Section 12.',
+      readiness: 'Eligibility Assessment Ready',
+      preparation: 'Income proof and identity details required.',
+      ctaText: 'Check Legal Aid',
+      ctaHref: `/cases/${caseId}/legal-aid`,
+      badgeColor: 'border-blue-500/40 bg-blue-500/10 text-blue-800 dark:text-blue-400 font-semibold',
+    },
+    {
+      title: 'Litigation / Rent Control Court',
+      why: 'Formal judicial filing before Rent Control Tribunal or Civil Court.',
+      readiness: 'Requires Advocate Review',
+      preparation: '9-Section Case Package required.',
+      ctaText: 'Prepare Case Package',
+      ctaHref: `/cases/${caseId}/case-package`,
+      badgeColor: 'border-purple-500/40 bg-purple-500/10 text-purple-800 dark:text-purple-400 font-semibold',
+    },
+  ];
 
-export function ResolutionPathwaysSection({
-  caseId = 'case-1',
-  pathways = DEFAULT_PATHWAYS,
-  className,
-}: ResolutionPathwaysSectionProps) {
   return (
     <div className={cn('legal-card p-5 space-y-4', className)}>
       <div className="flex items-center justify-between border-b border-border/60 pb-3">
         <div className="flex items-center gap-2">
           <Scale className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-          <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
-            Possible Resolution Pathways
-          </h3>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">
+            Available Resolution Pathways
+          </h2>
         </div>
-
-        <span className="text-[11px] text-muted-foreground font-medium">
-          Choose the most suitable path
-        </span>
+        <span className="text-[10px] text-muted-foreground uppercase font-semibold">Non-Binding Options</span>
       </div>
 
-      <div className="space-y-3">
-        {pathways.map((pw) => (
-          <div
-            key={pw.id}
-            className={cn(
-              'rounded-xl border p-4 transition-all space-y-2.5',
-              pw.recommended
-                ? 'border-amber-500/40 bg-amber-500/5 shadow-xs'
-                : 'border-border/80 bg-card hover:border-border'
-            )}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <h4 className="text-sm font-bold text-foreground">{pw.title}</h4>
-                  {pw.recommended && (
-                    <Badge className="bg-amber-500 text-slate-950 hover:bg-amber-400 text-[10px] font-bold px-2 py-0">
-                      Recommended
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">{pw.description}</p>
-              </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {pathways.map((p, i) => (
+          <div key={i} className="p-4 rounded-xl border border-border/80 bg-card hover:border-border space-y-3 flex flex-col justify-between">
+            <div className="space-y-1.5">
+              <Badge variant="outline" className={cn('text-[10px] uppercase px-2 py-0.5', p.badgeColor)}>
+                {p.readiness}
+              </Badge>
+              <h3 className="text-xs font-bold text-foreground">{p.title}</h3>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">{p.why}</p>
             </div>
 
-            <div className="text-[11px] bg-muted/40 p-2.5 rounded-lg border border-border/50 text-foreground/90 leading-relaxed">
-              <strong className="font-semibold text-foreground">Why this applies: </strong>
-              {pw.whyApplies}
-            </div>
-
-            <div className="pt-1 flex justify-end">
-              <Button asChild size="sm" className="bg-slate-900 text-slate-50 hover:bg-slate-800 dark:bg-amber-500 dark:text-slate-950 font-semibold text-xs rounded-xl">
-                <Link href={pw.ctaHref}>
-                  <span>{pw.ctaText}</span>
+            <div className="pt-2 border-t border-border/50 space-y-2">
+              <p className="text-[10px] text-muted-foreground">Preparation: <span className="font-semibold text-foreground">{p.preparation}</span></p>
+              <Button asChild size="sm" variant="outline" className="w-full text-xs font-semibold rounded-xl">
+                <Link href={p.ctaHref}>
+                  <span>{p.ctaText}</span>
                   <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                 </Link>
               </Button>

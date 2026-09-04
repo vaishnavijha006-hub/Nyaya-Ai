@@ -8,7 +8,7 @@ test.describe('Phase 14 — NJDG / eCourts Case Lookup & Delay Intelligence Inte
     });
 
     // Mock backend endpoint `/api/court-data/case-lookup` for E2E webServer context
-    await page.route((url) => url.pathname.includes('/api/court-data/case-lookup'), async (route) => {
+    await page.route('**/api/court-data/case-lookup*', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -82,6 +82,7 @@ test.describe('Phase 14 — NJDG / eCourts Case Lookup & Delay Intelligence Inte
     const cnrInput = page.locator('[data-testid="cnr-input"]');
     await cnrInput.scrollIntoViewIfNeeded();
     await cnrInput.fill('UPGB010012342024');
+    await cnrInput.dispatchEvent('change');
 
     const fetchBtn = page.locator('[data-testid="fetch-cnr-button"]');
     await fetchBtn.scrollIntoViewIfNeeded();

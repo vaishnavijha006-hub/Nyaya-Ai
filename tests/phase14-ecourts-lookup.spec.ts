@@ -89,7 +89,7 @@ test.describe('Phase 14 — NJDG / eCourts Case Lookup & Delay Intelligence Inte
     await expect(resultBox).toBeVisible({ timeout: 10000 });
 
     // Verify source badge (Live/Demo or Fallback user-reported)
-    await expect(page.getByText(/Source:/i)).toBeVisible();
+    await expect(resultBox.getByText(/Source:/i).first()).toBeVisible();
 
     // Verify court metadata
     await expect(page.getByText('CNR: UPGB010012342024')).toBeVisible();

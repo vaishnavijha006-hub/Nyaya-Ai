@@ -79,9 +79,11 @@ test.describe('Phase 14 — NJDG / eCourts Case Lookup & Delay Intelligence Inte
     await page.waitForLoadState('domcontentloaded');
 
     const cnrInput = page.locator('[data-testid="cnr-input"]');
+    await cnrInput.scrollIntoViewIfNeeded();
     await cnrInput.fill('UPGB010012342024');
 
     const fetchBtn = page.locator('[data-testid="fetch-cnr-button"]');
+    await fetchBtn.scrollIntoViewIfNeeded();
     await fetchBtn.click();
 
     // Wait for result container

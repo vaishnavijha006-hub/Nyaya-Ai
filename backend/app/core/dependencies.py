@@ -4,7 +4,7 @@ Provides get_supabase client and get_current_user authentication dependencies.
 """
 import os
 from typing import Optional
-from fastapi import Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from supabase import create_client, Client
 
 _supabase_client: Optional[Client] = None

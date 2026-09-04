@@ -45,22 +45,50 @@ const testimonials = [
   { name: 'Sneha Iyer', role: 'Legal Aid Volunteer', quote: 'For pro-bono cases, Nyaya helps us quickly triage disputes into mediation, legal aid, or formal filing.', rating: 5 },
 ];
 
+import { OnboardingModal } from '@/components/nyaya/onboarding-modal';
+import { StoryModeModal } from '@/components/nyaya/story-mode-modal';
+
 export default function LandingPage() {
+  const [showOnboarding, setShowOnboarding] = React.useState(false);
+  const [showStoryMode, setShowStoryMode] = React.useState(false);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const onboarded = localStorage.getItem('nyaya_onboarded_v1');
+      if (!onboarded) {
+        // Auto show onboarding for first-time visitors after short delay
+        const timer = setTimeout(() => setShowOnboarding(true), 800);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, []);
+
   return (
     <main className="relative overflow-hidden bg-background">
       <SiteHeader />
-      <Hero />
+      <Hero
+        onOpenOnboarding={() => setShowOnboarding(true)}
+        onOpenStoryMode={() => setShowStoryMode(true)}
+      />
       <JourneyPhilosophy />
       <Features />
       <Demo />
       <Testimonials />
       <CTA />
       <SiteFooter />
+
+      <OnboardingModal isOpen={showOnboarding} onClose={() => setShowOnboarding(false)} />
+      <StoryModeModal isOpen={showStoryMode} onClose={() => setShowStoryMode(false)} />
     </main>
   );
 }
 
-function Hero() {
+interface HeroProps {
+  onOpenOnboarding: () => void;
+  onOpenStoryMode: () => void;
+}
+
+function Hero({ onOpenOnboarding, onOpenStoryMode }: HeroProps) {
   const [problemText, setProblemText] = React.useState('');
   const router = useRouter();
 
@@ -80,10 +108,19 @@ function Hero() {
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl text-center">
           <Reveal>
-            <Badge variant="outline" className="mb-6 gap-1.5 rounded-full border-amber-500/30 bg-amber-500/10 px-3.5 py-1 text-xs font-semibold text-amber-800 dark:text-amber-400">
-              <Scale className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-              Intelligent Legal Journey Platform
-            </Badge>
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
+              <Badge variant="outline" className="gap-1.5 rounded-full border-amber-500/30 bg-amber-500/10 px-3.5 py-1 text-xs font-semibold text-amber-800 dark:text-amber-400">
+                <Scale className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                Intelligent Legal Journey Platform
+              </Badge>
+              <button
+                onClick={onOpenStoryMode}
+                className="inline-flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400 hover:underline font-semibold"
+              >
+                <span>View Product Story</span>
+                <Sparkles className="h-3 w-3" />
+              </button>
+            </div>
           </Reveal>
 
           <Reveal delay={0.05}>
@@ -96,8 +133,34 @@ function Hero() {
 
           <Reveal delay={0.1}>
             <p className="mx-auto mt-5 max-w-2xl text-base text-muted-foreground sm:text-lg leading-relaxed">
-              Describe what happened in your own words. Nyaya AI will help you understand the issue and identify the appropriate legal pathway.
+              Understand what happened, organize your evidence, explore possible resolution pathways, and prepare for the next step.
             </p>
+          </Reveal>
+
+          {/* Quick Action Buttons for Demo & Guidance */}
+          <Reveal delay={0.12}>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+              <Button
+                asChild
+                size="sm"
+                className="bg-amber-500 text-slate-950 hover:bg-amber-400 font-semibold rounded-xl text-xs shadow-sm"
+              >
+                <Link href="/demo" className="flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>Try Sample Demo Case</span>
+                </Link>
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onOpenOnboarding}
+                className="rounded-xl text-xs font-medium border-border/80"
+              >
+                How Nyaya Works
+              </Button>
+            </div>
           </Reveal>
 
           {/* Conversational Case Intake Box */}
@@ -119,8 +182,8 @@ function Hero() {
                 />
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-2.5 px-2">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-500" />
-                    <span>Confidential & Free Initial Assessment</span>
+                    <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-500 shrink-0" />
+                    <span>Confidential &amp; Free Initial Assessment</span>
                   </div>
                   <Button
                     type="submit"
@@ -132,6 +195,9 @@ function Hero() {
                   </Button>
                 </div>
               </div>
+              <p className="mt-2 text-center text-[11px] text-muted-foreground/80">
+                Nyaya AI provides informational and organizational assistance. It does not replace a qualified advocate or court.
+              </p>
             </form>
           </Reveal>
 

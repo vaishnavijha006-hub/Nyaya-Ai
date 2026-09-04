@@ -1,61 +1,75 @@
-# Nyaya AI (न्याय AI) — AI-Powered Indian Legal Intelligence & Assistant Platform
+# Nyaya AI (न्याय AI) — Final Product Experience & Legal Journey Platform
 
-![Nyaya AI](https://img.shields.io/badge/Production-Ready-brightgreen.svg)
+![Production Ready](https://img.shields.io/badge/Production-Ready-brightgreen.svg)
+![Phase 12 Complete](https://img.shields.io/badge/Phase%2012-Final%20Product%20Experience-amber)
 ![Next.js 14](https://img.shields.io/badge/Frontend-Next.js%2014-blue)
 ![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)
 ![Groq Llama 3.3](https://img.shields.io/badge/AI-Groq%20Llama%203.3%2070B-orange)
-![Hybrid RAG](https://img.shields.io/badge/Search-BM25%20%2B%20ChromaDB%20RRF-purple)
+![Playwright](https://img.shields.io/badge/Testing-Playwright%20E2E-green)
 
-> **Nyaya AI** is a production-grade AI platform designed to make Indian law simple, accessible, and actionable for citizens, students, legal professionals, UPSC aspirants, and consumers.
-
----
-
-## 🌟 Key Features
-
-- 🏛️ **AI Legal Assistant with Multi-Audience Tuning**: Context-aware legal explanations tailored for Citizens, Students, Lawyers, UPSC Aspirants, and Children.
-- ⚡ **Hybrid RAG Engine (BM25 + Vector Search)**: Merges sparse keyword search (BM25) and dense semantic vector search (`BAAI/bge-small-en-v1.5`) via **Reciprocal Rank Fusion (RRF)** for zero-hallucination accuracy.
-- 📜 **Statute Coverage**: Grounded in official text of the **Constitution of India**, **Bharatiya Nyaya Sanhita (BNS)**, **Bharatiya Nagarik Suraksha Sanhita (BNSS)**, **Bharatiya Sakshya Adhiniyam (BSA)**, RTI Act, IT Act, and landmark Supreme Court judgments.
-- 📄 **Automated Document Drafting**:
-  - **FIR Drafting Assistant**: Step-by-step form to perfectly draft formal police complaints under BNS/CrPC.
-  - **RTI Application Generator**: Generates formatted Right to Information applications ready for submission to PIOs.
-  - **Legal Notice Generator**: Generates formal legal notices formatted for Indian legal standards.
-  - **Contract Generator**: Draft and generate common legal contracts and agreements.
-  - *All generated documents can be instantly exported to PDF or DOCX.*
-- 🔖 **Citation Cards**: Every answer includes the exact applicable law, section, and citations for full transparency.
-- 📁 **Session-Scoped PDF RAG & Workspace**: Upload legal PDFs, query document contents dynamically, and manage your legal research in a personalized workspace.
-- 🤝 **Lawyer Network Directory**: A dedicated platform to find, filter, and seamlessly contact verified advocates by sharing AI chat context.
-- ⚖️ **Court Case Tracking**: Track the status and history of ongoing court cases across various Indian courts.
-- 👁️ **Document OCR**: Extract text and legal information seamlessly from scanned legal documents and images.
-- 🗣️ **Multilingual Support**: Supports 12+ Indian languages (Hindi, Marathi, Tamil, etc.) for Chat, RTI, and Legal Notices.
-- 🎙️ **Offline Voice AI**: Transcribes speech via Whisper STT and synthesizes neural Devanagari audio via Piper ONNX.
-- 🔐 **Authentication**: Secure user authentication and profiles to save your chat history, documents, and preferences.
-- 📈 **Real-Time Analytics**: Built on Supabase Realtime to track research sessions and chat queries.
-- ⚡ **Server-Sent Events (SSE)**: Real-time token streaming with live status updates and structured legal citations.
+> **Nyaya AI** is a judge-ready, citizen-first legal journey platform designed for Indian legal resolution.  
+> Nyaya AI does not merely answer legal queries — it guides citizens progressively from:  
+> **PROBLEM → FACTS → EVIDENCE → LEGAL ANALYSIS → RESOLUTION PATH → ACTION → RESOLUTION**  
+> while making pendency-reduction impact visible and avoiding unnecessary court litigation.
 
 ---
 
-## 🛠️ Technology Stack
+## 🌟 Problem & Core Innovation
 
-### Frontend
-- **Framework**: Next.js 14 (App Router)
-- **UI Library**: React 18, Tailwind CSS, Framer Motion, Radix UI
-- **State & Streaming**: Server-Sent Events (SSE), Custom Hooks (`useStreamingChat`, `useConversations`)
+### The Problem
+India faces over **50 million pending court cases**. Many legal disputes enter formal court litigation prematurely without adequate evidence organization, clear factual intake, or exploring available pre-litigation resolution alternatives like direct settlement, mediation (ADR), Lok Adalat, or administrative remedies.
 
-### Backend & AI Architecture
-- **Framework**: FastAPI (Python 3.10+)
-- **LLM Provider**: Groq LPU API (`llama-3.3-70b-versatile`)
-- **Vector DB & Retrieval**: ChromaDB, BM25Okapi, BAAI/bge-small-en-v1.5
-- **Database & Auth**: Supabase, PostgreSQL
-- **Audio Processing**: Whisper STT, Piper Neural Voice ONNX
+### The Nyaya Approach & Core Differentiator
+Most legal-tech tools focus on isolated tasks (static Q&A, simple drafting, or advocate search). Nyaya AI unifies 9 core capabilities into one cohesive, guided journey:
+
+1. **Conversational Intake**: Multi-lingual text and voice intake in everyday language.
+2. **Fact Extraction & Verification**: Automatic chronological extraction of parties, dates, and claims.
+3. **Document Evidence Audit**: Verification of uploaded agreements, receipts, and missing proof detection (`✓ Verified`, `↑ Uploaded`, `! Needs Review`, `○ Missing`).
+4. **Layered Legal Analysis**: 5-level structured analysis (Plain-Language Explanation, Possible Issues, Why They Apply, Uncertainties, Relevant Law & Citations).
+5. **Pathway Recommendations & Explainability**: Transparent *"Why Nyaya suggests exploring this"* reasoning for Pre-Litigation Settlement, Mediation (ADR), DLSA Legal Aid, or Formal Litigation.
+6. **Custom Action Plan**: `DONE`, `CURRENT`, and `UPCOMING` action cards formatted with `WHAT`, `WHY`, and `HOW`.
+7. **Judge-Ready Case Package Dossier**: 9-section structured case dossier with complete chronology and evidence matrix.
+8. **Delay Intelligence**: Factual tracking of court hearings, recorded adjournments, and time elapsed.
+9. **Systemic Pattern Engine**: Anonymized detection of recurring regional dispute clusters to support collective action.
+
+---
+
+## 🛡️ Legal Safety & Trust Principles
+
+- **Informational & Organizational Purpose**: Nyaya AI provides informational guidance. It does not replace a licensed advocate or court.
+- **Zero Win Probability Claims**: Case readiness is evaluated qualitatively across categories (Case Info, Evidence, Legal Review, Action Readiness). Nyaya never displays misleading win percentages.
+- **Privacy & Zero Public Model Training**: User case facts and uploaded documents are encrypted and never sent for public model training.
+- **Mandatory Advocate Review**: Generated Case Package Dossiers explicitly mandate qualified advocate review before court reliance or filing.
+
+---
+
+## 🛠️ Tech Stack & Architecture
+
+- **Frontend**: Next.js 14 (App Router), React 18, Tailwind CSS, Framer Motion, Radix UI, Lucide Icons.
+- **Backend & RAG**: FastAPI (Python 3.10+), ChromaDB, BM25Okapi, BAAI/bge-small-en-v1.5, RRF (Reciprocal Rank Fusion).
+- **LLM Provider**: Groq LPU API (`llama-3.3-70b-versatile`).
+- **Database & Auth**: Supabase, PostgreSQL, Server-Sent Events (SSE).
+- **E2E Testing**: Playwright E2E Test Suite (123+ spec scenarios).
 
 ---
 
 ## 🚀 Quick Start Guide
 
-### 1. Prerequisites
-- Node.js 18+ & npm
-- Python 3.10+
-- Groq API Key & Supabase Account
+### 1. Frontend Setup & Build
+```bash
+# Install dependencies
+npm install
+
+# Run TypeScript typecheck
+npm run typecheck
+
+# Run Next.js local development server
+npm run dev
+
+# Run production build
+npm run build
+```
+Open `http://localhost:3000` in your browser.
 
 ### 2. Backend Setup
 ```bash
@@ -66,25 +80,37 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
-### 3. Frontend Setup
+---
+
+## 🧪 Testing & E2E Validation
+
 ```bash
-npm install
-npm run dev
-```
-Open `http://localhost:3000` in your browser.
+# Run complete Playwright E2E test suite
+npx playwright test
 
----
-
-## 🛡️ Environment Variables (`.env.local`)
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
-NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
-GROQ_API_KEY=<your-groq-api-key>
+# Run backend Pytest suite
+cd backend
+pytest
 ```
 
 ---
 
-## 📜 License
+## 🎬 Demo Mode & Evaluator Guide
+
+For hackathon judges, mentors, and reviewers, Nyaya AI includes an **Interactive Demo Mode**:
+
+- **Demo Route**: Access `http://localhost:3000/demo`
+- **Demo Guide Document**: See [`docs/DEMO_GUIDE.md`](file:///c:/Users/sapna%20jha/Downloads/Nyaya-AI/Nyaya-Ai/docs/DEMO_GUIDE.md) for a detailed 5-7 minute presentation script.
+- **Sample Cases**: Pre-loaded with realistic Indian legal disputes (Tenant-Landlord Deposit Dispute, Employment Salary & Severance Recovery). All demo data is strictly isolated with `"Demo Case — Illustrative data only"`.
+
+---
+
+## 📜 Known Limitations
+
+- Nyaya AI is an informational decision-support system. It does not issue binding legal decrees or execute direct court submissions without human advocate intervention.
+- Automated document OCR accuracy is subject to scan resolution and image quality.
+
+---
+
+## 📄 License
 This project is licensed under the MIT License.

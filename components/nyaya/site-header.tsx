@@ -15,8 +15,10 @@ const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/chat', label: 'Ask Nyaya' },
   { href: '/cases', label: 'My Cases' },
+  { href: '/demo', label: 'Demo Mode' },
   { href: '/intelligence', label: 'Patterns' },
   { href: '/lawyers', label: 'Legal Aid' },
+  { href: '/trust', label: 'Trust & Safety' },
 ];
 
 export function SiteHeader() {

@@ -7,7 +7,7 @@ import { NyayaPath } from '@/components/nyaya/nyaya-path';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Scale, Plus, ArrowRight, FolderSearch, Calendar, MapPin, AlertCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { EmptyState } from '@/components/nyaya/empty-state';
 
 const mockCases = [
   {
@@ -61,52 +61,65 @@ export default function CasesDashboard() {
         </div>
 
         {/* Cases Grid */}
-        <div className="grid gap-4 md:grid-cols-2">
-          {mockCases.map((c) => (
-            <div key={c.id} className="legal-card p-5 space-y-4 flex flex-col justify-between">
-              <div className="space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="space-y-1">
-                    <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-wider border-amber-500/30 text-amber-800 dark:text-amber-400 px-2 py-0.5">
-                      {c.category}
+        {mockCases.length === 0 ? (
+          <EmptyState
+            icon={Scale}
+            title="Your legal journey starts here"
+            description="Describe your problem in plain words to create your first case intake session."
+            action={
+              <Button asChild size="sm" className="bg-slate-900 text-slate-50 hover:bg-slate-800 dark:bg-amber-500 dark:text-slate-950 font-semibold rounded-xl text-xs">
+                <Link href="/chat?new=true">Start Legal Journey</Link>
+              </Button>
+            }
+          />
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {mockCases.map((c) => (
+              <div key={c.id} className="legal-card p-5 space-y-4 flex flex-col justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-1">
+                      <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-wider border-amber-500/30 text-amber-800 dark:text-amber-400 px-2 py-0.5">
+                        {c.category}
+                      </Badge>
+                      <h2 className="text-base font-bold text-foreground">{c.title}</h2>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] uppercase tracking-wider border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-400 font-semibold px-2 py-0.5">
+                      {c.statusLabel}
                     </Badge>
-                    <h2 className="text-base font-bold text-foreground">{c.title}</h2>
                   </div>
-                  <Badge variant="outline" className="text-[10px] uppercase tracking-wider border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-400 font-semibold px-2 py-0.5">
-                    {c.statusLabel}
-                  </Badge>
+
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {c.description}
+                  </p>
                 </div>
 
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {c.description}
-                </p>
-              </div>
+                {/* Progress Bar Snippet */}
+                <div className="pt-2 border-t border-border/50 space-y-2">
+                  <NyayaPath currentStepIndex={c.currentStepIndex} variant="compact" />
 
-              {/* Progress Bar Snippet */}
-              <div className="pt-2 border-t border-border/50 space-y-2">
-                <NyayaPath currentStepIndex={c.currentStepIndex} variant="compact" />
+                  <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                    <span className="flex items-center gap-1">
+                      <MapPin className="h-3 w-3" /> {c.jurisdiction}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" /> {c.updated}
+                    </span>
+                  </div>
+                </div>
 
-                <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-                  <span className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" /> {c.jurisdiction}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" /> {c.updated}
-                  </span>
+                <div className="pt-2">
+                  <Button asChild size="sm" variant="outline" className="w-full justify-between rounded-xl text-xs font-semibold">
+                    <Link href={`/cases/${c.id}`}>
+                      <span>Open Case Dashboard</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+                  </Button>
                 </div>
               </div>
-
-              <div className="pt-2">
-                <Button asChild size="sm" variant="outline" className="w-full justify-between rounded-xl text-xs font-semibold">
-                  <Link href={`/cases/${c.id}`}>
-                    <span>Open Case Dashboard</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </AppShell>
   );

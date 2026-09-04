@@ -28,24 +28,32 @@ export function useConversations() {
 
   const load = React.useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('conversations')
-      .select('id, title, updated_at')
-      .order('updated_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('conversations')
+        .select('id, title, updated_at')
+        .order('updated_at', { ascending: false });
 
-    if (error) {
-      console.warn('[Supabase Warning] Failed to fetch conversations:', error.message);
-    } else if (data) {
-      setConversations(data as Conversation[]);
+      if (error) {
+        console.warn('[Supabase Warning] Failed to fetch conversations:', error.message);
+        setConversations([]);
+      } else if (Array.isArray(data)) {
+        setConversations(data as Conversation[]);
+      } else {
+        setConversations([]);
+      }
+    } catch (e) {
+      setConversations([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   React.useEffect(() => {
     load();
   }, [load]);
 
-  return { conversations, loading, reload: load };
+  return { conversations: Array.isArray(conversations) ? conversations : [], loading, reload: load };
 }
 
 export function useConversation(conversationId: string | null) {
@@ -58,16 +66,17 @@ export function useConversation(conversationId: string | null) {
       return;
     }
     setLoading(true);
-    const { data, error } = await supabase
-      .from('messages')
-      .select('id, role, content, citations, created_at')
-      .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true });
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('id, role, content, citations, created_at')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true });
 
-    if (error) {
-      console.warn('[Supabase Warning] Failed to fetch messages for conversation:', conversationId, error.message);
-    } else if (data) {
-      if (data.length > 0) {
+      if (error) {
+        console.warn('[Supabase Warning] Failed to fetch messages for conversation:', conversationId, error.message);
+        setMessages([]);
+      } else if (Array.isArray(data)) {
         setMessages(
           (data as Array<{ id: string; role: 'user' | 'assistant'; content: string; citations: Citation[] | null }>).map(
             (m) => ({
@@ -81,8 +90,11 @@ export function useConversation(conversationId: string | null) {
       } else {
         setMessages([]);
       }
+    } catch (e) {
+      setMessages([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [conversationId]);
 
   React.useEffect(() => {
@@ -155,8 +167,6 @@ export function useConversation(conversationId: string | null) {
     async (userText: string, assistantContent: string, citations: SourceCitation[], detectedLanguage?: string) => {
       if (!conversationId) return;
 
-      // Immediately add the completed assistant message to local state so it
-      // appears right after streaming ends (without needing a Supabase reload).
       const assistantMsg: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
@@ -166,7 +176,6 @@ export function useConversation(conversationId: string | null) {
       };
       setMessages((prev) => {
         const newMsgs = [...prev];
-        // If user message is missing (wiped by load() running during stream), add it back
         const hasUserMsg = newMsgs.some(m => m.role === 'user' && m.content === userText);
         if (!hasUserMsg) {
           newMsgs.push({
@@ -179,7 +188,6 @@ export function useConversation(conversationId: string | null) {
         return newMsgs;
       });
 
-      // Persist user message to Supabase
       const { error: uErr } = await supabase.from('messages').insert({
         conversation_id: conversationId,
         role: 'user',
@@ -189,7 +197,6 @@ export function useConversation(conversationId: string | null) {
         console.warn('[Supabase Warning] Failed to save user message in stream:', uErr.message);
       }
 
-      // Persist assistant message to Supabase
       const { error: aErr } = await supabase.from('messages').insert({
         conversation_id: conversationId,
         role: 'assistant',
@@ -218,7 +225,7 @@ export function useConversation(conversationId: string | null) {
     return id;
   }, []);
 
-  return { messages, loading, sendMessage, saveStreamedAnswer, addUserMessage, reload: load };
+  return { messages: Array.isArray(messages) ? messages : [], loading, sendMessage, saveStreamedAnswer, addUserMessage, reload: load };
 }
 
 export async function createConversation(title: string): Promise<string | null> {

@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageSquare, FileText, ScrollText, Settings, Menu, X, Plus, LogOut,
-  FolderOpen, BarChart3, Mic, ShieldAlert, Briefcase, PenTool, Users, Scale, Home, LayoutDashboard
+  FolderOpen, BarChart3, Mic, ShieldAlert, Briefcase, PenTool, Users, Scale, Home, LayoutDashboard, Sparkles
 } from 'lucide-react';
 import { Logo } from '@/components/nyaya/logo';
 import { Button } from '@/components/ui/button';
@@ -20,10 +20,12 @@ const primaryNav = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/chat', label: 'Ask Nyaya', icon: MessageSquare },
   { href: '/cases', label: 'My Cases', icon: Briefcase },
+  { href: '/demo', label: 'Demo Mode', icon: Sparkles },
   { href: '/documents', label: 'Documents', icon: FileText },
   { href: '/cluster-cases', label: 'Patterns', icon: Users },
   { href: '/lawyers', label: 'Legal Aid', icon: Scale },
   { href: '/workspace', label: 'Action Plans', icon: FolderOpen },
+  { href: '/trust', label: 'Trust & Safety', icon: ShieldAlert },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 

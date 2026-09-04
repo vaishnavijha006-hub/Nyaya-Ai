@@ -1,66 +1,89 @@
 'use client';
 
 import * as React from 'react';
-import { ShieldCheck, CheckCircle2, AlertTriangle, HelpCircle } from 'lucide-react';
+import { ShieldCheck, AlertCircle, CheckCircle2, HelpCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 export function ReadinessOverview({ className }: { className?: string }) {
-  const ReadinessItem = ({
-    title,
-    status,
-    note,
-  }: {
-    title: string;
-    status: 'READY' | 'PARTIALLY_READY' | 'NEEDS_INFO' | 'NEEDS_REVIEW';
-    note: string;
-  }) => {
-    const badge = React.useMemo(() => {
-      switch (status) {
-        case 'READY':
-          return { label: '✓ Ready', class: 'bg-emerald-600 text-white' };
-        case 'PARTIALLY_READY':
-          return { label: 'Partially Ready', class: 'border-blue-500/40 bg-blue-500/10 text-blue-800 dark:text-blue-300' };
-        case 'NEEDS_INFO':
-          return { label: 'Needs Info', class: 'border-amber-400 bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-300' };
-        case 'NEEDS_REVIEW':
-          return { label: 'Needs Review', class: 'border-slate-400 text-slate-700 dark:text-slate-300' };
-        default:
-          return { label: 'Available', class: 'border-border' };
-      }
-    }, [status]);
+  const categories = [
+    {
+      category: 'CASE INFORMATION',
+      status: 'Good Progress',
+      detail: 'Core timeline, parties, and dispute details extracted.',
+      badgeClass: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 font-semibold',
+    },
+    {
+      category: 'EVIDENCE',
+      status: 'Needs 2 Documents',
+      detail: 'Rent agreement uploaded; missing payment receipt & bank statement.',
+      badgeClass: 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-400 font-semibold',
+    },
+    {
+      category: 'LEGAL REVIEW',
+      status: 'Preliminary',
+      detail: 'Statutory grounds under Rent Control Act identified; requires advocate review.',
+      badgeClass: 'border-blue-500/40 bg-blue-500/10 text-blue-800 dark:text-blue-400 font-semibold',
+    },
+    {
+      category: 'ACTION READINESS',
+      status: 'Not Yet Ready',
+      detail: 'Complete evidence audit before issuing formal legal notice.',
+      badgeClass: 'border-slate-500/40 bg-slate-500/10 text-slate-800 dark:text-slate-300 font-semibold',
+    },
+  ];
 
-    return (
-      <div className="p-3 rounded-xl border border-border/80 bg-card space-y-1 text-xs">
-        <div className="flex items-center justify-between">
-          <span className="font-bold text-foreground">{title}</span>
-          <Badge variant="outline" className={cn('text-[10px] px-2 py-0.5 font-semibold', badge.class)}>
-            {badge.label}
-          </Badge>
-        </div>
-        <p className="text-[11px] text-muted-foreground">{note}</p>
-      </div>
-    );
-  };
+  const whatsMissing = [
+    'Signed Rent Agreement page 3 or security deposit bank transfer receipt',
+    'Confirmation of written eviction notice date',
+    'Advocate review prior to formal tribunal filing',
+  ];
 
   return (
     <div className={cn('legal-card p-5 space-y-4', className)}>
       <div className="flex items-center justify-between border-b border-border/60 pb-3">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          <ShieldCheck className="h-4 w-4 text-amber-600 dark:text-amber-400" />
           <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
-            Case Readiness Overview
+            Categorical Case Readiness
           </h3>
         </div>
-        <span className="text-[10px] text-muted-foreground uppercase font-semibold">Qualitative Assessment</span>
+        <span className="text-[10px] text-muted-foreground font-semibold">Qualitative Audit</span>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <ReadinessItem title="Facts" status="READY" note="Sufficient facts captured for legal analysis." />
-        <ReadinessItem title="Evidence" status="NEEDS_REVIEW" note="2 documents attached; proof review recommended." />
-        <ReadinessItem title="Legal Analysis" status="READY" note="Statutory framework & remedies identified." />
-        <ReadinessItem title="Resolution Path" status="READY" note="Pre-Litigation Settlement pathway identified." />
+        {categories.map((c) => (
+          <div key={c.category} className="p-3 rounded-xl border border-border/80 bg-card space-y-1.5 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-foreground">{c.category}</span>
+              <Badge variant="outline" className={cn('text-[10px] px-2 py-0.5', c.badgeClass)}>
+                {c.status}
+              </Badge>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">{c.detail}</p>
+          </div>
+        ))}
       </div>
+
+      {/* What's Missing Checklist */}
+      <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3.5 space-y-2">
+        <div className="flex items-center gap-2 text-amber-800 dark:text-amber-400 font-bold text-xs">
+          <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <span>What's Missing for Complete Readiness?</span>
+        </div>
+        <ul className="space-y-1.5 text-xs text-slate-700 dark:text-slate-300">
+          {whatsMissing.map((item, idx) => (
+            <li key={idx} className="flex items-start gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0 mt-1.5" />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <p className="text-[11px] text-muted-foreground text-center">
+        Nyaya AI evaluates readiness categorically. We never display misleading win probabilities or percentage predictions.
+      </p>
     </div>
   );
 }

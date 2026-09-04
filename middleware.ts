@@ -13,7 +13,14 @@ export async function middleware(request: NextRequest) {
   const hasDemoCookie = request.cookies.has('nyaya_demo_session');
 
   if (isPlaceholderOrOffline) {
-    // In offline or placeholder mode, rely on AuthProvider client-side session management
+    // In offline/placeholder mode, protect /workspace when no demo session cookie is present
+    if (request.nextUrl.pathname.startsWith('/workspace') && !hasDemoCookie) {
+      return NextResponse.redirect(new URL('/auth', request.url))
+    }
+    // Prevent logged-in users with active demo cookie from seeing the auth page again
+    if (request.nextUrl.pathname.startsWith('/auth') && hasDemoCookie) {
+      return NextResponse.redirect(new URL('/workspace', request.url))
+    }
     return response;
   }
 

@@ -74,7 +74,7 @@ export function ResolutionPathwaysSection({ caseId = 'case-1', className }: Reso
         <div className="flex items-center gap-2">
           <Scale className="h-4 w-4 text-amber-600 dark:text-amber-400" />
           <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">
-            Resolution Pathways &amp; Explainability
+            Available Resolution Pathways &amp; Explainability
           </h2>
         </div>
         <Badge variant="outline" className="text-[10px] uppercase font-semibold border-amber-500/30 text-amber-800 dark:text-amber-400">

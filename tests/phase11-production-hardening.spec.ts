@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Phase 11 — Final Production Hardening & Quality Gate E2E Suite', () => {
   test('Test 1: Health Check Endpoint Verification', async ({ request }) => {
-    const response = await request.get('http://127.0.0.1:8000/health');
+    const response = await request.get('/health');
     expect(response.ok()).toBeTruthy();
     const data = await response.json();
     expect(data.status).toBe('healthy');

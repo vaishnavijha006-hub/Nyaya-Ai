@@ -8,6 +8,7 @@ import { BeforeYouFileCard } from '@/components/nyaya/before-you-file-card';
 import { FactsSection } from '@/components/nyaya/case-dashboard/facts-section';
 import { ReadinessOverview } from '@/components/nyaya/case-dashboard/readiness-overview';
 import { EvidenceDocumentsSection } from '@/components/nyaya/case-dashboard/evidence-documents-section';
+import { DocumentPreparationSection } from '@/components/nyaya/case-dashboard/document-preparation-section';
 import { LegalAnalysisSection } from '@/components/nyaya/case-dashboard/legal-analysis-section';
 import { ResolutionPathwaysSection } from '@/components/nyaya/case-dashboard/resolution-pathways-section';
 import { ActionPlanSection } from '@/components/nyaya/case-dashboard/action-plan-section';
@@ -43,7 +44,7 @@ export default function CaseDetailPage() {
             <span>Nyaya Case Command Center</span>
           </div>
           <h1 className="text-2xl font-bold font-display text-foreground mt-0.5">
-            Case Overview: {caseId}
+            Case Details: {caseId}
           </h1>
         </div>
 
@@ -89,6 +90,11 @@ export default function CaseDetailPage() {
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <EvidenceDocumentsSection caseId={caseId} />
         <ReadinessOverview />
+      </section>
+
+      {/* DOCUMENT PREPARATION MATRIX */}
+      <section>
+        <DocumentPreparationSection />
       </section>
 
       {/* QUESTION 2 & 4: WHAT DOES NYAYA UNDERSTAND & WHAT LEGAL ISSUES APPLY? */}

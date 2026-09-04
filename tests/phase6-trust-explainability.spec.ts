@@ -28,7 +28,7 @@ test.describe('Phase 6 — Trust, Evidence & Explainability E2E Suite', () => {
     await page.goto('/cases/case-1');
     await page.waitForLoadState('domcontentloaded');
     await expect(page.locator('text=Transfer of Property Act, 1882').first()).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=STATUTORY TEXT')).toBeVisible();
-    await expect(page.locator('text=AI INTERPRETATION')).toBeVisible();
+    await expect(page.locator('text=Statutory Basis:').first()).toBeVisible();
+    await expect(page.locator('text=Facts Used:').first()).toBeVisible();
   });
 });

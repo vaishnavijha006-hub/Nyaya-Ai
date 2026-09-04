@@ -51,9 +51,12 @@ export function CasePackageWorkspace({ caseId = 'case-1', className }: CasePacka
         </div>
 
         <div className="flex items-center gap-3">
-          <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-400 text-xs px-3 py-1 font-semibold">
-            80% Prepared (8/9 Sections)
-          </Badge>
+          <div className="flex flex-col items-end gap-1">
+            <span className="text-[10px] uppercase font-bold text-muted-foreground">Case Package Readiness</span>
+            <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-400 text-xs px-3 py-1 font-semibold">
+              80% (Prepared for Advocate Review)
+            </Badge>
+          </div>
           <Button
             size="sm"
             onClick={() => toast.success('Exporting Judge-Ready Case Package PDF...')}

@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from app.services.llm import get_groq_client
+from app.services.llm import get_groq_client, PRIMARY_MODEL
 from app.utils.security import sanitize_input, check_prompt_injection
 
 logger = logging.getLogger(__name__)
@@ -65,7 +65,7 @@ async def generate_contract(request: Request, body: ContractRequest):
 
     try:
         response = client.chat.completions.create(
-            model="openai/gpt-oss-20b",
+            model=PRIMARY_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_content}

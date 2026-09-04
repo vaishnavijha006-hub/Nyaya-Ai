@@ -10,7 +10,7 @@ import logging
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from app.services.llm import get_groq_client
+from app.services.llm import get_groq_client, PRIMARY_MODEL
 from app.utils.security import sanitize_input, check_prompt_injection
 
 logger = logging.getLogger(__name__)

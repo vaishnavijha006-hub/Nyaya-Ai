@@ -2,7 +2,7 @@ import logging
 import traceback
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, ValidationError
-from app.services.llm import get_groq_client
+from app.services.llm import get_groq_client, PRIMARY_MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +127,7 @@ async def generate_rti(request: Request, body: RtiRequest):
 
     try:
         response = client.chat.completions.create(
-            model="openai/gpt-oss-20b",
+            model=PRIMARY_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_content}
@@ -269,7 +269,7 @@ async def generate_rti(request: Request, body: RtiRequest):
 
     try:
         response = client.chat.completions.create(
-            model="openai/gpt-oss-20b",
+            model=PRIMARY_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_content}

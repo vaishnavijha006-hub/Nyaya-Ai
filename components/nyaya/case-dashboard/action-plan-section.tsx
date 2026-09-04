@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { CheckCircle2, ArrowRight, Clock, Circle, ArrowUpRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { getCanonicalCaseState, updateActionStepStatus } from '@/lib/case-state-manager';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export interface ActionCardItem {
   id: string;
@@ -62,12 +64,36 @@ const DEFAULT_ACTIONS: ActionCardItem[] = [
 
 export function ActionPlanSection({
   caseId = 'case-1',
-  actions = DEFAULT_ACTIONS,
+  actions: initialActions = DEFAULT_ACTIONS,
   className,
 }: ActionPlanSectionProps) {
-  const currentActions = actions.filter((a) => a.status === 'CURRENT');
-  const upcomingActions = actions.filter((a) => a.status === 'UPCOMING');
-  const doneActions = actions.filter((a) => a.status === 'DONE');
+  const [actionList, setActionList] = React.useState<ActionCardItem[]>(initialActions);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const canonical = getCanonicalCaseState(caseId);
+      if (canonical.actionSteps && canonical.actionSteps.length > 0) {
+        const merged = initialActions.map((item) => {
+          const matched = canonical.actionSteps.find((s) => s.id === item.id);
+          return matched ? { ...item, status: matched.status } : item;
+        });
+        setActionList(merged);
+      }
+    }
+  }, [caseId, initialActions]);
+
+  const handleToggleDone = (actionId: string, currentStatus: string) => {
+    const nextStatus = currentStatus === 'DONE' ? 'CURRENT' : 'DONE';
+    updateActionStepStatus(caseId, actionId, nextStatus);
+    setActionList((prev) =>
+      prev.map((a) => (a.id === actionId ? { ...a, status: nextStatus } : a))
+    );
+    toast.success(nextStatus === 'DONE' ? 'Action marked as completed!' : 'Action reset to active state.');
+  };
+
+  const currentActions = actionList.filter((a) => a.status === 'CURRENT');
+  const upcomingActions = actionList.filter((a) => a.status === 'UPCOMING');
+  const doneActions = actionList.filter((a) => a.status === 'DONE');
 
   return (
     <div className={cn('legal-card p-5 space-y-4', className)}>
@@ -112,16 +138,26 @@ export function ActionPlanSection({
                 </div>
               </div>
 
-              {act.ctaText && (
-                <div className="pt-2 border-t border-amber-500/20 flex justify-end">
+              <div className="pt-2 border-t border-amber-500/20 flex items-center justify-between gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleToggleDone(act.id, act.status)}
+                  className="text-[11px] h-7 rounded-lg border-emerald-500/40 text-emerald-700 dark:text-emerald-400 font-semibold"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                  Mark Step Complete
+                </Button>
+
+                {act.ctaText && (
                   <Button asChild size="sm" className="bg-slate-900 text-slate-50 hover:bg-slate-800 dark:bg-amber-500 dark:text-slate-950 font-semibold text-xs rounded-xl">
                     <Link href={act.ctaHref || '#'}>
                       <span>{act.ctaText}</span>
                       <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                     </Link>
                   </Button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           ))}
         </div>

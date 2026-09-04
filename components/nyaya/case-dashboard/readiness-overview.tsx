@@ -45,7 +45,7 @@ export function ReadinessOverview({ className }: { className?: string }) {
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 text-amber-600 dark:text-amber-400" />
           <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
-            Categorical Case Readiness
+            Categorical Case Readiness Overview
           </h3>
         </div>
         <span className="text-[10px] text-muted-foreground font-semibold">Qualitative Audit</span>

@@ -16,37 +16,19 @@ const steps = [
     icon: Sparkles,
     title: '1. Tell Nyaya what happened',
     description: 'Describe your legal dispute in simple, everyday language. Use text or voice in your preferred language.',
-    tip: 'No complex legal terms needed — just tell the story from your perspective.',
-  },
-  {
-    icon: Scale,
-    title: '2. Fact Extraction & Clarification',
-    description: 'Nyaya AI analyzes your description, extracts key chronological facts, and asks intelligent follow-up questions if details are missing.',
-    tip: 'Helps transform raw stories into structured facts for legal review.',
+    tip: 'No complex legal jargon required — just describe what occurred from your perspective.',
   },
   {
     icon: FileText,
-    title: '3. Upload Relevant Evidence',
-    description: 'Upload contracts, rent agreements, receipts, or chat screenshots. Nyaya verifies documents and flags missing evidence.',
-    tip: 'Nyaya never uses private documents for public AI model training.',
-  },
-  {
-    icon: Scale,
-    title: '4. Layered Legal Analysis',
-    description: 'Receive preliminary legal analysis with plain-language explanations backed by exact statutory acts and court precedents.',
-    tip: 'Understand your rights without getting overwhelmed by legalese.',
+    title: '2. Nyaya AI organizes your facts and evidence',
+    description: 'Nyaya extracts chronological case facts, identifies key timeline dates, and audits your uploaded documents against statutory requirements.',
+    tip: 'Your private documents and case details remain strictly confidential and encrypted.',
   },
   {
     icon: Compass,
-    title: '5. Explore Resolution Pathways',
-    description: 'Evaluate options like Pre-Litigation Settlement, Mediation, DLSA Legal Aid, or Formal Litigation before stepping into court.',
-    tip: 'Designed to help avoid unnecessary delay and costly court filings.',
-  },
-  {
-    icon: CheckSquare,
-    title: '6. Follow Your Custom Action Plan',
-    description: 'Get step-by-step guidance on what to do next, with downloadable judge-ready case packages and templates.',
-    tip: 'Always review with a qualified advocate before filing formal claims.',
+    title: '3. Nyaya AI identifies possible resolution pathways',
+    description: 'Explore guided resolution pathways — from Pre-Litigation Settlement and Mediation to DLSA Legal Aid or formal court action when necessary.',
+    tip: 'Helps resolve suitable disputes earlier and reduce unnecessary court delay.',
   },
 ];
 
@@ -105,7 +87,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
           <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-slate-700 dark:text-slate-300">
             <ShieldCheck className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
             <p className="leading-snug">
-              <strong className="font-semibold text-foreground">Legal Safety Note:</strong> Nyaya AI provides informational and organizational assistance. It does not replace a qualified advocate or court.
+              <strong className="font-semibold text-foreground">Legal Safety Note:</strong> Nyaya AI provides preliminary legal information and structured guidance. It does not replace a qualified advocate or court.
             </p>
           </div>
 

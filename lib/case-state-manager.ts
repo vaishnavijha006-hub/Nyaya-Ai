@@ -164,3 +164,26 @@ export function addFactWithDeduplication(caseId: string, newFact: Omit<CaseFact,
   saveCanonicalCaseState(current);
   return current;
 }
+
+export function updateActionStepStatus(
+  caseId: string,
+  actionId: string,
+  newStatus: 'DONE' | 'CURRENT' | 'UPCOMING'
+): CanonicalCaseState {
+  const current = getCanonicalCaseState(caseId);
+  const action = current.actionSteps.find((a) => a.id === actionId);
+  if (action) {
+    action.status = newStatus;
+  } else {
+    current.actionSteps.push({
+      id: actionId,
+      title: 'Custom Action Step',
+      description: 'User initiated action step',
+      status: newStatus,
+      attribution: 'User Action',
+    });
+  }
+
+  saveCanonicalCaseState(current);
+  return current;
+}

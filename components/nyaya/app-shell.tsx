@@ -24,7 +24,7 @@ const primaryNav = [
   { href: '/documents', label: 'Documents', icon: FileText },
   { href: '/cluster-cases', label: 'Patterns', icon: Users },
   { href: '/lawyers', label: 'Legal Aid', icon: Scale },
-  { href: '/workspace', label: 'Action Plans', icon: FolderOpen },
+  { href: '/action-plans', label: 'Action Plans', icon: FolderOpen },
   { href: '/trust', label: 'Trust & Safety', icon: ShieldAlert },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];

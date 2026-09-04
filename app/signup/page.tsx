@@ -1,5 +1,5 @@
 import AuthPage from '@/app/auth/page';
 
 export default function SignupPage() {
-  return <AuthPage />;
+  return <AuthPage searchParams={Promise.resolve({ mode: 'signup' })} />;
 }

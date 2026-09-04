@@ -2,9 +2,8 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Mail, Lock, Loader2, Sparkles, CheckCircle2 } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { ArrowRight, Mail, Lock, Loader2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/components/nyaya/auth-provider';
 import { Logo } from '@/components/nyaya/logo';
@@ -12,20 +11,52 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Reveal } from '@/components/nyaya/reveal';
-import { cn } from '@/lib/utils';
 
-export default function AuthPage({ searchParams }: { searchParams?: Promise<{ mode?: string }> }) {
-  const { signIn, signUp } = useAuth();
+export default function AuthPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ mode?: string }> | { mode?: string };
+}) {
+  const { signIn, signUp, user, loading } = useAuth();
   const router = useRouter();
+  const browserSearchParams = useSearchParams();
+
+  // Resolve mode from props or query string
+  const [resolvedQueryMode, setResolvedQueryMode] = React.useState<'signin' | 'signup'>('signin');
+
+  React.useEffect(() => {
+    if (searchParams) {
+      Promise.resolve(searchParams).then((p) => {
+        if (p?.mode === 'signup' || p?.mode === 'signin') {
+          setResolvedQueryMode(p.mode);
+          setMode(p.mode);
+        }
+      });
+    } else {
+      const q = browserSearchParams?.get('mode');
+      if (q === 'signup' || q === 'signin') {
+        setResolvedQueryMode(q);
+        setMode(q);
+      }
+    }
+  }, [searchParams, browserSearchParams]);
+
   const [mode, setMode] = React.useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [busy, setBusy] = React.useState(false);
 
+  // If user is already authenticated, automatically redirect to chat
+  React.useEffect(() => {
+    if (user && !loading) {
+      router.push('/chat');
+    }
+  }, [user, loading, router]);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
-      toast.error('Enter your email and password');
+      toast.error('Please enter your email and password');
       return;
     }
     if (password.length < 6) {
@@ -35,14 +66,16 @@ export default function AuthPage({ searchParams }: { searchParams?: Promise<{ mo
     setBusy(true);
     const { error } = mode === 'signin' ? await signIn(email, password) : await signUp(email, password);
     setBusy(false);
+
     if (error) {
       toast.error(error);
       return;
     }
+
     if (mode === 'signup') {
-      toast.success('Account created — welcome to Nyaya AI');
+      toast.success('Account created and signed in successfully!');
     } else {
-      toast.success('Signed in');
+      toast.success('Signed in successfully!');
     }
     router.push('/chat');
   };
@@ -114,6 +147,7 @@ export default function AuthPage({ searchParams }: { searchParams?: Promise<{ mo
           <div className="mt-5 flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
             <span>{mode === 'signin' ? "Don't have an account?" : 'Already have an account?'}</span>
             <button
+              type="button"
               onClick={() => setMode((m) => (m === 'signin' ? 'signup' : 'signin'))}
               className="font-medium text-primary hover:underline"
             >

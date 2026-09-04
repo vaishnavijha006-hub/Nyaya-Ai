@@ -61,7 +61,8 @@ export function CourtLookupSection({
 
   const handleLookup = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    const cleanId = identifier.trim();
+    const formInputVal = e ? (e.currentTarget as HTMLFormElement)?.querySelector<HTMLInputElement>('input')?.value : '';
+    const cleanId = (formInputVal || identifier).trim();
     if (!cleanId) {
       setError('Please enter a 16-character CNR number or Court Case Number.');
       return;

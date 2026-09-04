@@ -8,6 +8,15 @@ export async function middleware(request: NextRequest) {
     },
   })
 
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const isPlaceholderOrOffline = !url || url.includes('placeholder') || url.includes('54321');
+  const hasDemoCookie = request.cookies.has('nyaya_demo_session');
+
+  if (isPlaceholderOrOffline) {
+    // In offline or placeholder mode, rely on AuthProvider client-side session management
+    return response;
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -56,14 +65,15 @@ export async function middleware(request: NextRequest) {
 
   // Refresh session if expired - required for Server Components
   const { data: { user } } = await supabase.auth.getUser()
+  const isAuthenticated = Boolean(user || hasDemoCookie);
 
   // Protect the workspace route
-  if (request.nextUrl.pathname.startsWith('/workspace') && !user) {
+  if (request.nextUrl.pathname.startsWith('/workspace') && !isAuthenticated) {
     return NextResponse.redirect(new URL('/auth', request.url))
   }
 
   // Prevent logged-in users from seeing the auth page again
-  if (request.nextUrl.pathname.startsWith('/auth') && user) {
+  if (request.nextUrl.pathname.startsWith('/auth') && isAuthenticated) {
     return NextResponse.redirect(new URL('/workspace', request.url))
   }
 

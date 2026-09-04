@@ -14,6 +14,7 @@ import { ResolutionPathwaysSection } from '@/components/nyaya/case-dashboard/res
 import { ActionPlanSection } from '@/components/nyaya/case-dashboard/action-plan-section';
 import { PendencyImpactSection } from '@/components/nyaya/pendency-impact-section';
 import { DelayTimelineSection } from '@/components/nyaya/case-dashboard/delay-timeline-section';
+import { CourtLookupSection } from '@/components/nyaya/case-dashboard/court-lookup-section';
 import { ActionCenter } from '@/components/nyaya/case-dashboard/action-center';
 import { CaseTrustSummary } from '@/components/nyaya/trust/case-trust-summary';
 import { FactConfirmationCard } from '@/components/nyaya/trust/fact-confirmation-card';
@@ -118,7 +119,8 @@ export default function CaseDetailPage() {
       </section>
 
       {/* DELAY INTELLIGENCE & FACTUAL HEARINGS LOG */}
-      <section>
+      <section className="space-y-6">
+        <CourtLookupSection caseId={caseId} />
         <DelayTimelineSection />
       </section>
 

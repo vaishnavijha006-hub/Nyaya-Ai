@@ -104,6 +104,7 @@ from app.api.legal_aid import router as legal_aid_router
 from app.api.lawyers import router as lawyers_router
 from app.api.legal_journey import router as legal_journey_router
 from app.api.cases import router as cases_router
+from app.api.court_data import router as court_data_router
 
 app.include_router(chat_router)
 app.include_router(llm_router)
@@ -114,6 +115,7 @@ app.include_router(legal_aid_router)
 app.include_router(lawyers_router)
 app.include_router(legal_journey_router)
 app.include_router(cases_router)
+app.include_router(court_data_router)
 app.include_router(legal_notice_router)
 app.include_router(fir_router)
 app.include_router(speech_router)

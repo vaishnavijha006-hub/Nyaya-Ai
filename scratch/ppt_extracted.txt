@@ -1,0 +1,204 @@
+=== SLIDE 1 ===
+  NYAYA AI
+  An AI-powered pre-litigation and case-quality engine built to reduce
+  case pendency in the Indian legal system
+  TEAM TECH CHAOS
+  Sapna Jha  •  Vaishnavi
+  4.76 Cr
+  pending cases
+  (district & subordinate)
+
+=== SLIDE 2 ===
+  PROBLEM STATEMENT
+  The Pendency Crisis
+  4.76 Cr
+  cases pending in district &
+  subordinate courts (Dec 2025)
+  93.66 L
+  cases pending across
+  High Courts
+  21 / 50
+  judges per 10 lakh people vs.
+  recommended ratio
+  ~9%
+  of India's GDP estimated lost
+  to delayed justice annually
+  Why cases pile up
+  Avoidable disputes that never needed a court in the first place
+  Poor pleading quality causing repeated hearings and rejections
+  Frequent, low-cost adjournments with no visible impact on litigants
+  Limited pre-litigation settlement before a case is even filed
+  “As on Nov 21, 2023: 4.4 crore pending in district & taluka courts, of which 1.8 crore are stuck at the appearance/service stage alone.”
+  — Centre for Research & Planning, Supreme Court of India,
+  "State of the Judiciary" report
+  Source: Ministry of Law & Justice / NJDG (Lok Sabha reply, Feb 2026); Law Commission of India, 245th Report
+  2 / 10
+
+=== SLIDE 3 ===
+  OUR SOLUTION
+  Nyaya AI: From Problem to Resolution
+  Not just a legal chatbot — a pre-litigation filter and case-quality engine that decides whether a dispute should go to court at all.
+  1
+  Understand
+  Conversational intake distinguishes question type & gathers facts
+  2
+  Verify
+  Cross-checks uploaded documents against the stated facts
+  3
+  Check Eligibility
+  Section 12 LSA Act test + nearest DLSA office match
+  4
+  Triage
+  Settlement-readiness score: file / fix / mediate first
+  5
+  Connect
+  Routes to DLSA office, empanelled lawyer, or Lok Adalat/mediation
+  6
+  Act
+  Produces a judge-ready case package with delay tracking
+  This deck also covers: what's genuinely new, technical implementation, scalability, business model and the rollout plan.
+  Journey: Problem → Understand → Verify → Explain → Eligibility → Connect → Act
+  3 / 10
+
+=== SLIDE 4 ===
+  INNOVATION & DIFFERENTIATION
+  What's Genuinely New
+  Four modules that don't exist in any current Indian legal-tech app — each one changes the user's pathway, not just their information.
+  1
+  Two-Sided Pre-Litigation Portal
+  Gives the opposite party a real link to respond, builds a confidential settlement dossier, and only escalates to filing if resolution genuinely fails.
+  2
+  Dispute Readiness & Settlement Score
+  Actively changes the user's pathway — file now, fix defects first, or attempt mediation — instead of just handing over information.
+  3
+  Adjournment & Delay Intelligence
+  Quantifies cumulative delay and estimates the cost of the next adjournment — the first litigant-facing delay metric in this space.
+  4
+  Cluster Case Filing → Systemic Fix
+  Detects patterns across many individual complaints (Cluster Case Filing) and converts them into collective filings, PIL outlines, and regulator-facing hotspot dashboards.
+  Benchmarked against Nyaya Setu, NyayMitra, AI Legal Guru & Heary-type apps: none actively divert filings, detect clusters, or quantify delay — this is the differentiated core
+  4 / 10
+
+=== SLIDE 5 ===
+  SOLVING IT: PORTAL & SETTLEMENT SCORE
+  Closing the Gaps on Portal & Scoring
+  Four open questions across the two-sided settlement portal and the readiness score, and how the design answers them.
+  Open Question
+  Two-Sided Portal
+  What if the opposite party never responds to the pre-litigation notice?
+  Can the settlement dossier be used against a user later, discouraging honest talks?
+  Settlement Score & Liability
+  Could a strong case get mis-scored as "mediate" and cost the user their rights?
+  What is Nyaya AI's liability if a completeness check misses something?
+  Our Fix
+  Two-Sided Portal
+  No response → auto-escalates to Lok Adalat/court; logged as neutral, never as fault. All talks stay confidential "without prejudice" under the Mediation Act, 2023.
+  Settlement Score & Liability
+  Score is advisory only — a hard-coded limitation-period check overrides it near deadlines; every recommendation is flagged for advocate review before use, mirroring NALSA’s Tele-Law disclaimer model.
+  Source: Mediation Act, 2023; Limitation Act, 1963; NALSA Tele-Law disclaimer model
+  5 / 10
+
+=== SLIDE 6 ===
+  SOLVING IT: DELAY, CLUSTERS & LEGAL AID
+  Delay Data, Clustering & Aid Eligibility
+  Open questions across delay tracking, cluster/PIL detection, and legal-aid eligibility — and how the design answers them.
+  Open Question
+  Delay Intelligence
+  Is adjournment/delay data manually entered, or pulled from a real source?
+  Cluster Case Filing & PIL
+  How is a false cluster match prevented, e.g. two tenants sharing a landlord?
+  Once PIL-flagged, who actually takes the matter forward?
+  Legal Aid Eligibility
+  Section 12 LSA has overlapping grounds — does the user reach the right DLSA office?
+  Our Fix
+  Delay Intelligence
+  Two-tier pipeline: NJDG/eCourts data for digitised courts, flagged "user-reported" fallback elsewhere — calibrated against real disposal rates (1.8Cr disposed vs 2Cr filed, 2023).
+  Cluster Case Filing & PIL
+  Multi-factor match (entity + incident window + issue category) with mandatory human confirmation — no auto-enrollment; PIL matters route to empanelled advocates via DLSA/NALSA, never self-filed.
+  Legal Aid Eligibility
+  Eligibility coded deterministically from Section 12 & NALSA guidelines; user is matched to nearest DLSA with documents needed; borderline cases go to manual review.
+  Source: NJDG/eCourts; Constitution Art. 32 & 226, PIL Rules 2013; Legal Services Authorities Act, 1987
+  6 / 10
+
+=== SLIDE 7 ===
+  TECHNICAL IMPLEMENTATION
+  Architecture, Stack & Test Results
+  Working architecture
+  Frontend: Next.js / React with SSE streaming for live responses
+  Backend: FastAPI orchestration with multi-tenant session isolation (journey_state.py)
+  9-pathway router (pathway_router.py) directing users to the right module
+  Dedicated engines already implemented: triage, case-packaging, cluster detection (Qdrant, PII-scrubbed), systemic action, PIL, settlement, ADR, delay-tracking, and enhanced legal-aid matching
+  Legal document generation (RTI, notice, contract) with print-ready PDF output already working
+  Verified by testing
+  54/54
+  pytest cases
+  passed
+  6/6
+  Playwright end-to-
+  end tests passed
+  TypeScript build: clean
+  (no type errors across the frontend)
+  Built on a working, tested full-stack architecture — not a concept deck
+  7 / 10
+
+=== SLIDE 8 ===
+  SCALABILITY & BUSINESS MODEL
+  Built to Scale — and Pay Off
+  1
+  Modular engines
+  Triage, cluster, settlement, ADR and delay-tracking each run as independent services — they can be scaled or deployed per state/DLSA without touching the others.
+  2
+  Multi-tenant by design
+  Session isolation (journey_state.py) already separates users/tenants, so onboarding new states or institutional partners doesn't require re-architecture.
+  3
+  Vector search at volume
+  Cluster detection runs on Qdrant vector similarity, built for semantic matching across millions of complaints, not a handful.
+  4
+  B2C — Citizens
+  Free tier for queries & eligibility check; Pro Citizen ₹199–499/mo unlocks triage, portal & delay tracker; pay-per-document ₹99–299.
+  5
+  B2B — Advocates & DLSAs
+  Advocate Suite ₹1,499–2,999/mo for case-package intake & cluster leads; hotspot/pattern dashboards licensed to DLSAs and regulators.
+  6
+  Traction Proof
+  NALSA's 1st National Lok Adalat 2026 disposed 2.84 Cr cases worth ₹10,920+ Cr in a single day — citizens & institutions already engage once pre-litigation settlement is made easy.
+  Pricing indicative. Traction: NALSA, 1st National Lok Adalat 2026 (14 March 2026) disposal figures
+  8 / 10
+
+=== SLIDE 9 ===
+  FUTURE IMPLEMENTATION
+  Rollout Plan
+  Phase 1
+  0–3 months
+  Pilot with one partner DLSA — validate eligibility logic, the adjournment data pipeline, and the mediation confidentiality workflow on real cases.
+  Phase 2
+  3–9 months
+  Expand to 2–3 states, onboard the empanelled pro-bono advocate/NGO network, and enable PIL flagging in production under human review.
+  Phase 3
+  9–18 months
+  Multi-state general availability; license hotspot/pattern dashboards to DLSAs and regulators; extend the multilingual voice interface to the pendency modules.
+  Phase 4
+  18+ months
+  Unify under the broader Ekjut platform — a single B2C + B2B Indian legal-access OS spanning rights information, drafting, pre-litigation and case-quality tools.
+  Positioning note: this pendency layer is designed to fold into Ekjut, not replace it
+  9 / 10
+
+=== SLIDE 10 ===
+  REFERENCES
+  Research & Data Sources
+  Ministry of Law & Justice / National Judicial Data Grid (NJDG) — Lok Sabha reply, Feb 2026
+  Law Commission of India, 245th Report on Arrears and Backlog
+  NALSA, National Lok Adalat statistics, 2024–2026
+  Mediation Act, 2023 (Act No. 32 of 2023)
+  Legal Services Authorities Act, 1987, Section 12
+  Constitution of India, Articles 32 & 226; Supreme Court PIL Rules, 2013
+  e-Committee, Supreme Court of India — NJDG / eCourts documentation
+  Limitation Act, 1963
+  Centre for Research & Planning, Supreme Court of India — “State of the Judiciary” report
+  Team Tech Chaos
+  10 / 10
+  Source Code:
+  github.com/vaishnavijha006-hub/Nyaya-Ai
+  Demo/Prototype:
+  drive.google.com/.../view (Demo Video)
+

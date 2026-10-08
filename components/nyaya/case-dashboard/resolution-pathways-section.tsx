@@ -9,64 +9,120 @@ import { cn } from '@/lib/utils';
 
 interface ResolutionPathwaysSectionProps {
   caseId?: string;
+  isEmployment?: boolean;
   className?: string;
 }
 
-export function ResolutionPathwaysSection({ caseId = 'case-1', className }: ResolutionPathwaysSectionProps) {
-  const pathways = [
-    {
-      title: 'Pre-Litigation Settlement',
-      whySuggests: [
-        'Dispute appears heavily document-driven (contracts, agreements, receipts)',
-        'Monetary terms or arrears may be negotiable outside court',
-        'Formal court filing may not be necessary at this preliminary stage',
-      ],
-      readiness: 'High Readiness',
-      preparation: 'Rent Agreement & Payment Receipt attached.',
-      ctaText: 'Explore Settlement Terms',
-      ctaHref: `/cases/${caseId}/settlement`,
-      badgeColor: 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-400 font-bold',
-    },
-    {
-      title: 'Mediation / Lok Adalat (ADR)',
-      whySuggests: [
-        'Parties may have an ongoing relationship (tenancy, employment, business)',
-        'Resolution may be achieved quickly without prolonged court trial',
-        'Binding decree obtainable under Legal Services Authorities Act',
-      ],
-      readiness: 'Available',
-      preparation: 'DLSA pre-litigation application checklist ready.',
-      ctaText: 'Explore ADR & Mediation',
-      ctaHref: `/cases/${caseId}/adr`,
-      badgeColor: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 font-semibold',
-    },
-    {
-      title: 'Government Legal Aid (DLSA)',
-      whySuggests: [
-        'Citizen indicators suggest eligibility under Section 12 criteria',
-        'Potential need for state-assisted pro-bono advocate representation',
-        'Free legal advice and document assistance available',
-      ],
-      readiness: 'Eligibility Assessment Ready',
-      preparation: 'Income proof and identity details required.',
-      ctaText: 'Check Legal Aid Eligibility',
-      ctaHref: `/cases/${caseId}/legal-aid`,
-      badgeColor: 'border-blue-500/40 bg-blue-500/10 text-blue-800 dark:text-blue-400 font-semibold',
-    },
-    {
-      title: 'Formal Litigation / Court Filing',
-      whySuggests: [
-        'Dispute may require binding formal adjudication by a tribunal or magistrate',
-        'Other pre-litigation pathways may be unsuitable or exhausted',
-        'Requires structured case packaging and advocate representation',
-      ],
-      readiness: 'Requires Advocate Review',
-      preparation: '9-Section Case Package required.',
-      ctaText: 'Prepare Case Package Dossier',
-      ctaHref: `/cases/${caseId}/case-package`,
-      badgeColor: 'border-purple-500/40 bg-purple-500/10 text-purple-800 dark:text-purple-400 font-semibold',
-    },
-  ];
+export function ResolutionPathwaysSection({ caseId = 'case-1', isEmployment = false, className }: ResolutionPathwaysSectionProps) {
+  const pathways = isEmployment
+    ? [
+        {
+          title: 'Labor Conciliation (Labor Officer)',
+          whySuggests: [
+            'Dispute involves unpaid wages and notice pay under statutory labor laws',
+            'Labor conciliation is fast-track and cost-effective without civil court fees',
+            'Official conciliation officer can summon employer for binding settlement',
+          ],
+          readiness: 'High Readiness',
+          preparation: 'Offer Letter & Bank Statement attached.',
+          ctaText: 'Explore Conciliation',
+          ctaHref: `/cases/${caseId}/settlement`,
+          badgeColor: 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-400 font-bold',
+        },
+        {
+          title: '15-Day Statutory Legal Demand Notice',
+          whySuggests: [
+            'Mandatory demand notice giving employer 15 days to credit pending wages',
+            'Establishes formal documentary proof of breach for subsequent tribunal filing',
+            'High probability of employer compliance once formal demand is issued',
+          ],
+          readiness: 'Ready',
+          preparation: 'Demand Notice template ready for drafting.',
+          ctaText: 'Draft Salary Demand Notice',
+          ctaHref: `/legal-notice`,
+          badgeColor: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 font-semibold',
+        },
+        {
+          title: 'Government Legal Aid (DLSA / Labor Counsel)',
+          whySuggests: [
+            'Free legal assistance for workers and salaried employees under DLSA framework',
+            'Pro-bono advocate assignment for filing before Labor Authorities',
+            'Exemption from filing fees under Payment of Wages Act',
+          ],
+          readiness: 'Eligibility Assessment Ready',
+          preparation: 'Salary statement & ID proof required.',
+          ctaText: 'Check Legal Aid Eligibility',
+          ctaHref: `/cases/${caseId}/legal-aid`,
+          badgeColor: 'border-blue-500/40 bg-blue-500/10 text-blue-800 dark:text-blue-400 font-semibold',
+        },
+        {
+          title: 'Labor Court / Industrial Tribunal Claim',
+          whySuggests: [
+            'Required if labor conciliation officer fails to reach amicable settlement',
+            'Formal adjudication resulting in binding judicial recovery order',
+            'Requires structured case dossier with evidence annexures',
+          ],
+          readiness: 'Requires Advocate Review',
+          preparation: '9-Section Case Dossier required.',
+          ctaText: 'Prepare Case Package Dossier',
+          ctaHref: `/cases/${caseId}/case-package`,
+          badgeColor: 'border-purple-500/40 bg-purple-500/10 text-purple-800 dark:text-purple-400 font-semibold',
+        },
+      ]
+    : [
+        {
+          title: 'Pre-Litigation Settlement',
+          whySuggests: [
+            'Dispute appears heavily document-driven (contracts, agreements, receipts)',
+            'Monetary terms or arrears may be negotiable outside court',
+            'Formal court filing may not be necessary at this preliminary stage',
+          ],
+          readiness: 'High Readiness',
+          preparation: 'Rent Agreement & Payment Receipt attached.',
+          ctaText: 'Explore Settlement Terms',
+          ctaHref: `/cases/${caseId}/settlement`,
+          badgeColor: 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-400 font-bold',
+        },
+        {
+          title: 'Mediation / Lok Adalat (ADR)',
+          whySuggests: [
+            'Parties may have an ongoing relationship (tenancy, employment, business)',
+            'Resolution may be achieved quickly without prolonged court trial',
+            'Binding decree obtainable under Legal Services Authorities Act',
+          ],
+          readiness: 'Available',
+          preparation: 'DLSA pre-litigation application checklist ready.',
+          ctaText: 'Explore ADR & Mediation',
+          ctaHref: `/cases/${caseId}/adr`,
+          badgeColor: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 font-semibold',
+        },
+        {
+          title: 'Government Legal Aid (DLSA)',
+          whySuggests: [
+            'Citizen indicators suggest eligibility under Section 12 criteria',
+            'Potential need for state-assisted pro-bono advocate representation',
+            'Free legal advice and document assistance available',
+          ],
+          readiness: 'Eligibility Assessment Ready',
+          preparation: 'Income proof and identity details required.',
+          ctaText: 'Check Legal Aid Eligibility',
+          ctaHref: `/cases/${caseId}/legal-aid`,
+          badgeColor: 'border-blue-500/40 bg-blue-500/10 text-blue-800 dark:text-blue-400 font-semibold',
+        },
+        {
+          title: 'Formal Litigation / Court Filing',
+          whySuggests: [
+            'Dispute may require binding formal adjudication by a tribunal or magistrate',
+            'Other pre-litigation pathways may be unsuitable or exhausted',
+            'Requires structured case packaging and advocate representation',
+          ],
+          readiness: 'Requires Advocate Review',
+          preparation: '9-Section Case Package required.',
+          ctaText: 'Prepare Case Package Dossier',
+          ctaHref: `/cases/${caseId}/case-package`,
+          badgeColor: 'border-purple-500/40 bg-purple-500/10 text-purple-800 dark:text-purple-400 font-semibold',
+        },
+      ];
 
   return (
     <div className={cn('legal-card p-5 space-y-4', className)}>

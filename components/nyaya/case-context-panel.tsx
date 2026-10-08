@@ -47,20 +47,23 @@ export function CaseContextPanel({
 
   // Map backend journey stage string to 0-6 index for NyayaPath
   const currentStepIndex = React.useMemo(() => {
-    const stage = journeyStage || canonicalState.journeyStage;
-    if (!stage) return 0;
+    const stage = journeyStage || (caseClassification ? 'FACTS' : null);
+    if (!stage) return 1; // Default to Facts (Gathering Facts 2/7) during intake
     switch (stage.toUpperCase()) {
       case 'PROBLEM':
       case 'GATHER_DETAILS':
-        return 1;
+        return 0;
       case 'FACTS':
       case 'REQUEST_DOCUMENTS':
       case 'VERIFY_DOCUMENTS':
-        return 2;
+        return 1;
       case 'EVIDENCE':
+        return 2;
       case 'LEGAL_ANALYSIS':
+      case 'ANALYSIS':
         return 3;
       case 'RESOLUTION PATH':
+      case 'PATHWAY':
       case 'CHECK_AID_ELIGIBILITY':
       case 'ROUTE_AID':
         return 4;
@@ -73,7 +76,7 @@ export function CaseContextPanel({
       default:
         return 1;
     }
-  }, [journeyStage, canonicalState.journeyStage]);
+  }, [journeyStage, caseClassification]);
 
   // Extract structured facts safely
   const caseType = caseClassification?.category || caseClassification?.case_type || 'Legal Inquiry';
@@ -83,6 +86,8 @@ export function CaseContextPanel({
   const statements = caseClassification?.statements || [];
   const missingInfo = caseClassification?.missing_info || caseClassification?.missing_facts || [];
   const requiredDocs = documentRequest?.required_documents || documentRequest?.documents || [];
+
+  const hasActiveCase = !!(journeyStage || caseClassification || (legalAnalysis && Object.keys(legalAnalysis).length > 0));
 
   return (
     <aside className={cn('flex h-full flex-col bg-card border-l border-border/80', className)}>
@@ -98,19 +103,22 @@ export function CaseContextPanel({
           </div>
         </div>
         {onCloseMobile && (
-          <button onClick={onCloseMobile} className="rounded-lg p-1 text-muted-foreground hover:bg-muted lg:hidden">
+          <Button size="icon" variant="ghost" onClick={onCloseMobile} className="h-7 w-7 lg:hidden">
             <X className="h-4 w-4" />
-          </button>
+          </Button>
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-5 no-scrollbar">
-        {/* Journey Progress Indicator */}
-        <div>
-          <NyayaPath currentStepIndex={currentStepIndex} variant="compact" />
+      {!hasActiveCase ? (
+        <div className="flex flex-1 flex-col items-center justify-center p-6 text-center text-xs text-muted-foreground space-y-3">
+          <Scale className="h-10 w-10 text-muted-foreground/30" />
+          <p className="font-semibold text-foreground">No Active Case Intake</p>
+          <p className="max-w-xs leading-relaxed">
+            Describe a personal legal issue to initialize structured case context, evidence collection, and legal pathway routing.
+          </p>
         </div>
-
-        {/* Case Overview Card */}
+      ) : (
+        <div className="flex-1 overflow-y-auto p-4 space-y-5 no-scrollbar">
         <div className="legal-card p-3.5 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Case Type</span>
@@ -251,6 +259,7 @@ export function CaseContextPanel({
           Initial AI assessment for guidance only. Does not constitute formal legal advice.
         </div>
       </div>
+      )}
     </aside>
   );
 }

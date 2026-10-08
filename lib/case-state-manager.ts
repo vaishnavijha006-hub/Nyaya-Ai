@@ -116,8 +116,106 @@ export const DEFAULT_CANONICAL_CASE: CanonicalCaseState = {
   lastUpdated: new Date().toISOString(),
 };
 
+export const DEFAULT_EMPLOYMENT_CASE: CanonicalCaseState = {
+  caseId: 'case-2',
+  title: 'Employment Contract & Salary Claim',
+  category: 'Employment & Labor',
+  journeyStage: 'Evidence',
+  facts: [
+    {
+      id: 'f-1',
+      label: 'Monthly Unpaid Salary',
+      value: '₹75,000 / month (2 Months)',
+      source: 'Bank Statement & Offer Letter',
+      status: 'CONFIRMED',
+    },
+    {
+      id: 'f-2',
+      label: 'Notice Pay Requirement',
+      value: '30-Day Mandatory Notice Pay',
+      source: 'Employment Contract',
+      status: 'CONFIRMED',
+    },
+    {
+      id: 'f-3',
+      label: 'Employer Name',
+      value: 'Apex Tech Solutions Pvt Ltd',
+      source: 'Offer Letter',
+      status: 'DOCUMENT_SUPPORTED',
+    },
+    {
+      id: 'f-4',
+      label: 'Termination Date',
+      value: '15 Dec 2025',
+      source: 'Termination Email',
+      status: 'USER_PROVIDED',
+    },
+  ],
+  documents: [
+    {
+      id: 'doc-1',
+      name: 'Offer Letter & Employment Contract.pdf',
+      type: 'Employment Contract',
+      status: 'VERIFIED',
+      uploadDate: '10 Aug 2026',
+    },
+    {
+      id: 'doc-2',
+      name: 'Bank Statement (Oct-Nov).pdf',
+      type: 'Payment Record',
+      status: 'VERIFIED',
+      uploadDate: '10 Aug 2026',
+    },
+    {
+      id: 'doc-3',
+      name: 'Termination Email.eml',
+      type: 'Notice Letter',
+      status: 'UPLOADED',
+      uploadDate: '10 Aug 2026',
+    },
+  ],
+  actionSteps: [
+    {
+      id: 'act-1',
+      title: 'Review Extracted Dispute Facts',
+      description: 'Confirm unpaid wages and contract notice pay terms.',
+      status: 'DONE',
+      attribution: 'User Confirmed',
+    },
+    {
+      id: 'act-2',
+      title: 'Upload Offer Letter & Bank Statements',
+      description: 'Employment contract uploaded & verified by parser.',
+      status: 'DONE',
+      attribution: 'Verified Document',
+    },
+    {
+      id: 'act-3',
+      title: 'Generate Demand Notice for Salary & Severance',
+      description: 'Formulate 15-day statutory demand under Payment of Wages Act.',
+      status: 'CURRENT',
+      attribution: 'AI-Generated Draft',
+    },
+    {
+      id: 'act-4',
+      title: 'Submit Wage Grievance to Labor Conciliation Officer',
+      description: 'File Form K claim with Bengaluru Labor Officer.',
+      status: 'UPCOMING',
+      attribution: 'Labor Officer Action Required',
+    },
+  ],
+  resolutionStatus: 'Active: Labor Conciliation & Wage Recovery',
+  lastUpdated: new Date().toISOString(),
+};
+
+function getDefaultCaseState(caseId: string): CanonicalCaseState {
+  const isEmp = caseId === 'case-2' || caseId === 'demo-case-2' || caseId.includes('2') || caseId.toLowerCase().includes('employment');
+  const base = isEmp ? DEFAULT_EMPLOYMENT_CASE : DEFAULT_CANONICAL_CASE;
+  return { ...base, caseId };
+}
+
 export function getCanonicalCaseState(caseId: string = 'case-1'): CanonicalCaseState {
-  if (typeof window === 'undefined') return DEFAULT_CANONICAL_CASE;
+  if (typeof window === 'undefined') return getDefaultCaseState(caseId);
   try {
     const raw = localStorage.getItem(`${STORAGE_PREFIX}${caseId}`);
     if (raw) {
@@ -126,7 +224,7 @@ export function getCanonicalCaseState(caseId: string = 'case-1'): CanonicalCaseS
   } catch (e) {
     console.error('[case-state-manager] Failed reading local storage:', e);
   }
-  return { ...DEFAULT_CANONICAL_CASE, caseId };
+  return getDefaultCaseState(caseId);
 }
 
 export function saveCanonicalCaseState(state: CanonicalCaseState): void {

@@ -7,25 +7,43 @@ import { cn } from '@/lib/utils';
 
 interface ActionCenterProps {
   caseId?: string;
+  isEmployment?: boolean;
   className?: string;
 }
 
-export function ActionCenter({ caseId = 'case-1', className }: ActionCenterProps) {
+export function ActionCenter({ caseId = 'case-1', isEmployment, className }: ActionCenterProps) {
+  const checkEmp = isEmployment ?? (caseId === 'case-2' || caseId === 'demo-case-2' || caseId.includes('2') || caseId.toLowerCase().includes('employment'));
+
   const actions: ActionCardProps[] = [
-    {
-      id: 'act-1',
-      title: 'Prepare Pre-Litigation Settlement Notice',
-      category: 'SETTLEMENT',
-      description: 'Generate a 15-day statutory pre-litigation settlement proposal to send to the landlord before filing in court.',
-      status: 'RECOMMENDED',
-      whySuggested: [
-        'Dispute is document-based with rent agreement & UPI receipt available.',
-        'Pre-litigation settlement avoids costly and lengthy court proceedings.',
-        'High potential for out-of-court agreement under Transfer of Property Act principles.'
-      ],
-      primaryCtaText: 'Explore Settlement',
-      primaryCtaHref: `/cases/${caseId}/settlement`,
-    },
+    checkEmp
+      ? {
+          id: 'act-1',
+          title: 'Prepare Statutory Salary Demand Notice',
+          category: 'SETTLEMENT',
+          description: 'Generate a 15-day statutory demand notice to send to employer demanding unpaid salary & notice pay before labor conciliation.',
+          status: 'RECOMMENDED',
+          whySuggested: [
+            'Dispute is backed by offer letter & bank statement showing unpaid salary.',
+            'Statutory notice gives employer formal opportunity to settle salary claim.',
+            'Serves as mandatory proof for Labor Conciliation Officer.',
+          ],
+          primaryCtaText: 'Draft Demand Notice',
+          primaryCtaHref: `/legal-notice`,
+        }
+      : {
+          id: 'act-1',
+          title: 'Prepare Pre-Litigation Settlement Notice',
+          category: 'SETTLEMENT',
+          description: 'Generate a 15-day statutory pre-litigation settlement proposal to send to the landlord before filing in court.',
+          status: 'RECOMMENDED',
+          whySuggested: [
+            'Dispute is document-based with rent agreement & UPI receipt available.',
+            'Pre-litigation settlement avoids costly and lengthy court proceedings.',
+            'High potential for out-of-court agreement under Transfer of Property Act principles.',
+          ],
+          primaryCtaText: 'Explore Settlement',
+          primaryCtaHref: `/cases/${caseId}/settlement`,
+        },
     {
       id: 'act-2',
       title: 'Explore DLSA Free Legal Aid',
@@ -34,22 +52,22 @@ export function ActionCenter({ caseId = 'case-1', className }: ActionCenterProps
       status: 'AVAILABLE',
       whySuggested: [
         'Free legal services are guaranteed for eligible income categories & vulnerable groups.',
-        'DLSA provides advocate assignment and court fee exemptions.'
+        'DLSA provides advocate assignment and court fee exemptions.',
       ],
       primaryCtaText: 'Check Legal Aid',
       primaryCtaHref: `/cases/${caseId}/legal-aid`,
     },
     {
       id: 'act-3',
-      title: 'Explore Lok Adalat / ADR Mediation',
+      title: 'Explore Lok Adalat / Labor Mediation',
       category: 'SETTLEMENT',
-      description: 'Submit dispute to District Legal Services Authority (DLSA) Lok Adalat for rapid binding conciliation.',
+      description: 'Submit dispute to District Legal Services Authority (DLSA) or Labor Conciliation Officer for rapid binding conciliation.',
       status: 'AVAILABLE',
       whySuggested: [
         'Binding decree under Section 21 of LSA Act without court fees.',
-        'Non-adversarial, confidential, and quick resolution.'
+        'Non-adversarial, confidential, and quick resolution.',
       ],
-      primaryCtaText: 'Explore Lok Adalat',
+      primaryCtaText: 'Explore Mediation',
       primaryCtaHref: `/cases/${caseId}/adr`,
     },
     {
@@ -60,7 +78,7 @@ export function ActionCenter({ caseId = 'case-1', className }: ActionCenterProps
       status: 'AVAILABLE',
       whySuggested: [
         'Organizes all 7 legal journey stages for advocate review.',
-        'Accelerates court filing readiness.'
+        'Accelerates court filing readiness.',
       ],
       primaryCtaText: 'Prepare Package',
       primaryCtaHref: `/cases/${caseId}/case-package`,

@@ -46,6 +46,8 @@ export interface StreamingResponseCardProps {
   error?: string | null;
   /** ISO language code detected by backend */
   detectedLanguage?: string;
+  /** Verification status (VERIFIED, GROUNDED, ADVISORY, CASUAL) */
+  verificationStatus?: string;
 }
 
 export function StreamingResponseCard({
@@ -56,6 +58,7 @@ export function StreamingResponseCard({
   sourceCitations,
   error,
   detectedLanguage = 'en',
+  verificationStatus,
 }: StreamingResponseCardProps) {
   const [copied, setCopied] = React.useState(false);
   const [feedback, setFeedback] = React.useState<'up' | 'down' | null>(null);
@@ -150,9 +153,21 @@ export function StreamingResponseCard({
           <div className="mb-2 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold">Nyaya AI</span>
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
-                Verified
-              </span>
+              {verificationStatus === 'VERIFIED' && (
+                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  Verified
+                </span>
+              )}
+              {verificationStatus === 'GROUNDED' && (
+                <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                  Grounded
+                </span>
+              )}
+              {verificationStatus === 'ADVISORY' && (
+                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                  Advisory
+                </span>
+              )}
             </div>
             <span
               className={cn(

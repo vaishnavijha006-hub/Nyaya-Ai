@@ -286,6 +286,29 @@ async def run_legal_analysis(
     from app.rag.retriever import retrieve
     from fastapi.concurrency import run_in_threadpool
 
+    q_clean = re.sub(r'[^\w\s]', '', question.lower()).strip()
+    greeting_set = {
+        "hi", "hii", "hiii", "hello", "hey", "heyy", "greetings", "good morning",
+        "good afternoon", "good evening", "namaste", "namaskar", "help", "who are you",
+        "what can you do", "test", "thanks", "thank you", "hi nyaya", "hello nyaya"
+    }
+    has_legal_keywords = any(k in q_clean for k in ["act", "law", "sec", "fir", "rti", "court", "my", "i", "case", "legal", "notice", "rights"])
+
+    if q_clean in greeting_set or (len(q_clean) < 6 and not has_legal_keywords):
+        from app.services.intent_classifier import get_greeting_message
+        return {
+            "applicable_laws": [],
+            "user_rights": [
+                "Right to consult legal information and seek advice for your specific situation.",
+                "Right to confidentiality and privacy when describing your legal issue."
+            ],
+            "possible_remedies": [],
+            "relevant_judgments": [],
+            "legal_disclaimer": "This is AI-generated legal assistance.",
+            "summary": get_greeting_message(language),
+            "sources_count": 0
+        }
+
     case_info = case_info or {}
     category = case_info.get("category", "")
     sub_category = case_info.get("sub_category", "")
@@ -340,7 +363,6 @@ async def run_legal_analysis(
             fallback_prompt = LEGAL_ANALYSIS_SYSTEM_PROMPT + "\n\nOUTPUT ONLY VALID JSON.\n\n" + prompt
             raw = _gemini_fallback(fallback_prompt, "").strip()
             try:
-                import re
                 match = re.search(r'```(?:json)?\s*([\s\S]*?)```', raw)
                 if match:
                     raw = match.group(1)

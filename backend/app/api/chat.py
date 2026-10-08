@@ -50,7 +50,9 @@ from app.services.case_type_analyzer import (
     format_case_analysis_message,
 )
 from app.services.action_plan_generator import generate_action_plan, format_action_plan_message
-from app.services.intent_classifier import classify_intent
+from app.services.intent_classifier import (
+    classify_intent, is_legal_intent, get_greeting_message, get_clarification_prompt
+)
 from app.services.pathway_router import route_legal_pathway
 from app.services.triage_engine import evaluate_prelitigation_triage
 from app.services.case_packaging import generate_structured_case_package
@@ -104,6 +106,7 @@ class ChatResponse(BaseModel):
     citation_quality: float = 0.90
     emergency_mode: bool = False
     risk_level: str = "NORMAL"
+    verification_status: str = Field(default="GENERATED")
 
 
 class SafeSSEPayload(BaseModel):
@@ -113,6 +116,7 @@ class SafeSSEPayload(BaseModel):
     citations: Optional[List[dict]] = None
     sources: Optional[List[dict]] = None
     detected_language: Optional[str] = None
+    verification_status: Optional[str] = None
     emergency_mode: Optional[bool] = None
     risk_level: Optional[str] = None
     case_id: Optional[str] = None
@@ -248,7 +252,15 @@ async def chat_stream(request: Request, body: ChatRequest):
         existing_intent = state.get("intent", "UNKNOWN")
 
         intent_result = await run_in_threadpool(classify_intent, clean_question, history_str)
-        intent = intent_result.get("intent", "UNKNOWN")
+        intent = intent_result.get("intent", "CASUAL_CHAT")
+
+        # Map legacy aliases
+        if intent in ["GREETING", "UNKNOWN"]:
+            intent = "CASUAL_CHAT"
+        elif intent == "GENERAL_LEGAL_QUESTION":
+            intent = "GENERAL_LEGAL_QUERY"
+        elif intent == "DOCUMENT_RELATED_QUERY":
+            intent = "DOCUMENT_QUERY"
 
         is_in_personal_intake = (existing_intent == "PERSONAL_LEGAL_PROBLEM" and current_stage == STAGE_GATHER_DETAILS)
         
@@ -256,7 +268,6 @@ async def chat_stream(request: Request, body: ChatRequest):
             update_state(session_id, {"intent": intent})
             effective_intent = intent
         elif is_in_personal_intake:
-            # Check if user explicitly asked a general question or just gave an intake answer
             if len(clean_question.split()) < 6 or not any(kw in clean_question.lower() for kw in ["what is", "how do i", "explain", "documents required", "procedure"]):
                 effective_intent = "PERSONAL_LEGAL_PROBLEM"
             else:
@@ -265,19 +276,34 @@ async def chat_stream(request: Request, body: ChatRequest):
             effective_intent = intent
 
         add_history_message(session_id, "user", clean_question)
-        
-        # Route non-personal queries directly
-        if effective_intent in ["GENERAL_LEGAL_QUESTION", "PROCEDURAL_QUERY", "DOCUMENT_RELATED_QUERY", "UNKNOWN"] and effective_intent != "PERSONAL_LEGAL_PROBLEM":
-            if effective_intent == "DOCUMENT_RELATED_QUERY":
+
+        # ── HARD INTENT GATE: Non-legal inputs MUST NOT enter case/RAG modules ──
+        if not is_legal_intent(effective_intent):
+            if effective_intent == "INSUFFICIENT_CONTEXT":
+                answer = get_clarification_prompt(clean_question, lang)
+                v_status = "ADVISORY"
+            else:
+                answer = get_greeting_message(lang)
+                v_status = "CASUAL"
+
+            add_history_message(session_id, "assistant", answer)
+            yield f"data: {json.dumps({'type': 'token', 'content': answer, 'verification_status': v_status})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            return
+
+        # Direct handling for non-personal legal queries
+        if effective_intent in ["GENERAL_LEGAL_QUERY", "PROCEDURAL_QUERY", "DOCUMENT_QUERY"]:
+            if effective_intent == "DOCUMENT_QUERY":
                 from app.services.drafting_engine import run_drafting_engine
                 answer = await run_drafting_engine(clean_question, lang, history_str)
                 add_history_message(session_id, "assistant", answer)
-                yield f"data: {json.dumps({'type': 'token', 'content': answer})}\n\n"
+                yield f"data: {json.dumps({'type': 'token', 'content': answer, 'verification_status': 'GENERATED'})}\n\n"
             else:
                 legal_analysis = await run_legal_analysis(None, clean_question, lang, history_str, audience)
                 answer = format_legal_analysis_message(legal_analysis)
                 add_history_message(session_id, "assistant", answer)
-                yield f"data: {json.dumps({'type': 'token', 'content': answer})}\n\n"
+                v_status = "GROUNDED" if legal_analysis.get("sources_count", 0) > 0 else "GENERATED"
+                yield f"data: {json.dumps({'type': 'token', 'content': answer, 'verification_status': v_status})}\n\n"
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
             return
 
@@ -725,17 +751,66 @@ async def chat(request: Request, body: ChatRequest):
 
         add_history_message(session_id, "user", clean_question)
 
-        if effective_intent in ["GENERAL_LEGAL_QUESTION", "PROCEDURAL_QUERY", "DOCUMENT_RELATED_QUERY", "UNKNOWN"] and effective_intent != "PERSONAL_LEGAL_PROBLEM":
-            if effective_intent == "DOCUMENT_RELATED_QUERY":
+        intent_result = await run_in_threadpool(classify_intent, clean_question, history_str)
+        intent = intent_result.get("intent", "CASUAL_CHAT")
+
+        # Map legacy aliases
+        if intent in ["GREETING", "UNKNOWN"]:
+            intent = "CASUAL_CHAT"
+        elif intent == "GENERAL_LEGAL_QUESTION":
+            intent = "GENERAL_LEGAL_QUERY"
+        elif intent == "DOCUMENT_RELATED_QUERY":
+            intent = "DOCUMENT_QUERY"
+
+        is_in_personal_intake = (existing_intent == "PERSONAL_LEGAL_PROBLEM" and current_stage == STAGE_GATHER_DETAILS)
+
+        if intent in ["PERSONAL_LEGAL_PROBLEM", "EMERGENCY_LEGAL_PROBLEM"]:
+            update_state(session_id, {"intent": intent})
+            effective_intent = intent
+        elif is_in_personal_intake:
+            if len(clean_question.split()) < 6 or not any(kw in clean_question.lower() for kw in ["what is", "how do i", "explain", "documents required", "procedure"]):
+                effective_intent = "PERSONAL_LEGAL_PROBLEM"
+            else:
+                effective_intent = intent
+        else:
+            effective_intent = intent
+
+        add_history_message(session_id, "user", clean_question)
+
+        # ── HARD INTENT GATE ──────────────────────────────────────────────────
+        if not is_legal_intent(effective_intent):
+            if effective_intent == "INSUFFICIENT_CONTEXT":
+                answer = get_clarification_prompt(clean_question, target_lang)
+                v_status = "ADVISORY"
+            else:
+                answer = get_greeting_message(target_lang)
+                v_status = "CASUAL"
+
+            add_history_message(session_id, "assistant", answer)
+            return ChatResponse(
+                answer=answer,
+                detected_language=target_lang,
+                response_language=LANGUAGE_NAME_MAP.get(target_lang, "English"),
+                confidence_score=1.0,
+                retrieval_confidence=0.0,
+                verification_status=v_status,
+                sources=[],
+                citations=[],
+            )
+
+        if effective_intent in ["GENERAL_LEGAL_QUERY", "PROCEDURAL_QUERY", "DOCUMENT_QUERY"]:
+            if effective_intent == "DOCUMENT_QUERY":
                 from app.services.drafting_engine import run_drafting_engine
                 answer = await run_drafting_engine(clean_question, target_lang, history_str)
                 confidence = 0.9
                 retrieval = 0.0
+                v_status = "GENERATED"
             else:
                 legal_analysis = await run_legal_analysis(None, clean_question, target_lang, history_str, audience)
                 answer = format_legal_analysis_message(legal_analysis)
                 confidence = 0.88
                 retrieval = float(min(legal_analysis.get("sources_count", 0) / 6, 1.0))
+                v_status = "GROUNDED" if legal_analysis.get("sources_count", 0) > 0 else "GENERATED"
 
             add_history_message(session_id, "assistant", answer)
             return ChatResponse(
@@ -744,6 +819,7 @@ async def chat(request: Request, body: ChatRequest):
                 response_language=LANGUAGE_NAME_MAP.get(target_lang, "English"),
                 confidence_score=confidence,
                 retrieval_confidence=retrieval,
+                verification_status=v_status,
             )
 
         existing_case = state.get("case_info", {})

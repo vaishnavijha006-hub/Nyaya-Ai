@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
-export function RelatedPatternsSection({ caseId, className }: { caseId: string; className?: string }) {
+export function RelatedPatternsSection({ caseId, isEmployment = false, className }: { caseId: string; isEmployment?: boolean; className?: string }) {
+  const checkEmp = isEmployment || caseId === 'case-2' || caseId === 'demo-case-2' || caseId.includes('2') || caseId.toLowerCase().includes('employment');
+
   return (
     <div className={cn('legal-card p-5 space-y-3.5 text-xs', className)}>
       <div className="flex items-center justify-between border-b border-border/60 pb-3">
@@ -25,16 +27,20 @@ export function RelatedPatternsSection({ caseId, className }: { caseId: string; 
       <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/5 flex items-center justify-between gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-foreground text-xs">Repeated Security Deposit Deductions Pattern</span>
-            <Badge className="bg-amber-600 text-white text-[9px]">42 Cases</Badge>
+            <span className="font-bold text-foreground text-xs">
+              {checkEmp ? 'Unpaid Salary & Immediate Termination Pattern' : 'Repeated Security Deposit Deductions Pattern'}
+            </span>
+            <Badge className="bg-amber-600 text-white text-[9px]">{checkEmp ? '28 Cases' : '42 Cases'}</Badge>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            This case shares factual &amp; structural characteristics with 42 anonymised tenant deposit disputes in Urban District.
+            {checkEmp
+              ? 'This case shares factual & structural characteristics with 28 anonymised IT/employment salary claims in Bengaluru District.'
+              : 'This case shares factual & structural characteristics with 42 anonymised tenant deposit disputes in Urban District.'}
           </p>
         </div>
 
         <Button asChild size="sm" variant="outline" className="h-8 text-xs font-semibold text-amber-700 hover:text-amber-800 dark:text-amber-400 shrink-0">
-          <Link href="/intelligence/pat-1" className="flex items-center gap-1">
+          <Link href={checkEmp ? '/intelligence/pat-2' : '/intelligence/pat-1'} className="flex items-center gap-1">
             <span>View Pattern</span>
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>

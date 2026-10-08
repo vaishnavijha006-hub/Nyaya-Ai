@@ -21,11 +21,12 @@ export interface ActionCardItem {
 
 interface ActionPlanSectionProps {
   caseId?: string;
+  isEmployment?: boolean;
   actions?: ActionCardItem[];
   className?: string;
 }
 
-const DEFAULT_ACTIONS: ActionCardItem[] = [
+const DEFAULT_RENTAL_ACTIONS: ActionCardItem[] = [
   {
     id: 'act-1',
     status: 'DONE',
@@ -62,11 +63,51 @@ const DEFAULT_ACTIONS: ActionCardItem[] = [
   },
 ];
 
+const DEFAULT_EMPLOYMENT_ACTIONS: ActionCardItem[] = [
+  {
+    id: 'act-1',
+    status: 'DONE',
+    what: 'Describe employment dispute facts & timeline during intake',
+    why: 'Extracts salary amounts, tenure, and notice period terms.',
+    how: 'Completed during initial Ask Nyaya session.',
+  },
+  {
+    id: 'act-2',
+    status: 'DONE',
+    what: 'Upload offer letter & salary bank statement proof',
+    why: 'Establishes contractual notice pay clause and proves unpaid wages.',
+    how: 'Upload PDF or documents from Evidence & Documents section.',
+    ctaText: 'Upload Documents',
+    ctaHref: '/documents',
+  },
+  {
+    id: 'act-3',
+    status: 'CURRENT',
+    what: 'Draft formal 15-day Statutory Demand Notice for Salary & Severance',
+    why: 'Required under Indian labor law to give employer statutory opportunity to pay pending wages.',
+    how: 'Use Nyaya Legal Notice Drafter to generate demand notice.',
+    ctaText: 'Draft Legal Notice',
+    ctaHref: '/legal-notice',
+  },
+  {
+    id: 'act-4',
+    status: 'UPCOMING',
+    what: 'Submit Form K Wage Claim to Labor Conciliation Officer',
+    why: 'Initiates official labor conciliation proceedings before Bengaluru Labor Officer.',
+    how: 'File conciliation application with Nyaya Case Dossier.',
+    ctaText: 'View Case Package',
+    ctaHref: '/cases/case-2/case-package',
+  },
+];
+
 export function ActionPlanSection({
   caseId = 'case-1',
-  actions: initialActions = DEFAULT_ACTIONS,
+  isEmployment,
+  actions,
   className,
 }: ActionPlanSectionProps) {
+  const checkEmp = isEmployment ?? (caseId === 'case-2' || caseId === 'demo-case-2' || caseId.includes('2') || caseId.toLowerCase().includes('employment'));
+  const initialActions = actions || (checkEmp ? DEFAULT_EMPLOYMENT_ACTIONS : DEFAULT_RENTAL_ACTIONS);
   const [actionList, setActionList] = React.useState<ActionCardItem[]>(initialActions);
 
   React.useEffect(() => {

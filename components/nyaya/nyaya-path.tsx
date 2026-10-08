@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 export interface NyayaPathStep {
   id: string;
   name: string;
+  shortName: string;
   humanLabel: string;
   description: string;
 }
@@ -15,42 +16,49 @@ export const LEGAL_JOURNEY_STEPS: NyayaPathStep[] = [
   {
     id: 'problem',
     name: 'Problem',
+    shortName: 'Problem',
     humanLabel: 'Problem Stated',
     description: 'Initial natural language description of dispute.',
   },
   {
     id: 'facts',
     name: 'Facts',
+    shortName: 'Facts',
     humanLabel: 'Gathering Facts',
     description: 'Extracting dates, parties, jurisdiction & core events.',
   },
   {
     id: 'evidence',
     name: 'Evidence',
+    shortName: 'Evidence',
     humanLabel: 'Reviewing Evidence',
     description: 'Verifying contracts, payment receipts & notices.',
   },
   {
     id: 'analysis',
     name: 'Legal Analysis',
+    shortName: 'Analysis',
     humanLabel: 'Analyzing Law',
     description: 'Identifying applicable Indian statutes & precedents.',
   },
   {
     id: 'pathway',
     name: 'Resolution Path',
+    shortName: 'Path',
     humanLabel: 'Exploring Pathways',
     description: 'Evaluating settlement, mediation, legal aid or court.',
   },
   {
     id: 'action',
     name: 'Action',
+    shortName: 'Action',
     humanLabel: 'Executing Action',
     description: 'Drafting legal notices, applications & case package.',
   },
   {
     id: 'resolution',
     name: 'Resolution',
+    shortName: 'Resolution',
     humanLabel: 'Resolution',
     description: 'Final binding agreement, award, or court disposition.',
   },
@@ -88,14 +96,14 @@ export function NyayaPath({
       </div>
 
       {/* 7-Step Progress Tracker */}
-      <div className="grid grid-cols-7 gap-1.5 pt-1">
+      <div className="grid grid-cols-7 gap-1 pt-1">
         {LEGAL_JOURNEY_STEPS.map((step, idx) => {
           const isCompleted = idx < currentStepIndex;
           const isActive = idx === currentStepIndex;
           const isUpcoming = idx > currentStepIndex;
 
           return (
-            <div key={step.id} className="flex flex-col items-center gap-1.5 group text-center">
+            <div key={step.id} className="flex flex-col items-center gap-1 group text-center min-w-0">
               {/* Connector & Circle */}
               <div
                 className={cn(
@@ -106,16 +114,17 @@ export function NyayaPath({
                 )}
               />
 
-              <div className="hidden sm:flex flex-col items-center">
+              <div className="hidden sm:flex flex-col items-center w-full min-w-0">
                 <span
+                  title={step.name}
                   className={cn(
-                    'text-[10px] font-semibold transition-colors',
+                    'text-[9px] font-semibold transition-colors block w-full truncate leading-tight',
                     isCompleted && 'text-emerald-700 dark:text-emerald-400 font-bold',
                     isActive && 'text-amber-900 dark:text-amber-300 font-extrabold',
                     isUpcoming && 'text-muted-foreground/70'
                   )}
                 >
-                  {step.name}
+                  {step.shortName || step.name}
                 </span>
               </div>
             </div>

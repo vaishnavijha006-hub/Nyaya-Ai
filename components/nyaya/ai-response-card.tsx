@@ -20,6 +20,7 @@ export interface AIResponse {
   sourceCitations?: SourceCitation[];
   pending?: boolean;
   detected_language?: string;
+  verification_status?: string;
 }
 
 import { ResearchNotesPanel } from '@/components/nyaya/research-notes-panel';
@@ -115,9 +116,21 @@ export function AIResponseCard({ response }: { response: AIResponse }) {
           <div className="mb-1.5 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold">Nyaya AI</span>
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
-                Verified
-              </span>
+              {response.verification_status === 'VERIFIED' && (
+                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  Verified
+                </span>
+              )}
+              {response.verification_status === 'GROUNDED' && (
+                <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                  Grounded
+                </span>
+              )}
+              {response.verification_status === 'ADVISORY' && (
+                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                  Advisory
+                </span>
+              )}
             </div>
             
             <span className={cn('inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-bold shadow-sm uppercase tracking-wide', metaLang.style)}>

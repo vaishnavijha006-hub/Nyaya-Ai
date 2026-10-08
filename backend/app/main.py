@@ -80,16 +80,9 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 # Validate environment fast on startup
 validate_environment()
 
-# Configure CORSMiddleware - allow_origin_regex covers ALL origins including localhost
-# Using regex only to avoid Starlette conflict between allow_origins and allow_origin_regex
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3001",
-    ],
+    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

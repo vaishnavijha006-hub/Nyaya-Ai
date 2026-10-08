@@ -564,22 +564,24 @@ function ChatPanel({
                 />
               ) : (
                 <div className="space-y-4">
-                  {/* Case Created & Journey Feedback Banner */}
-                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs space-y-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-500/20 pb-2">
-                      <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-400 font-bold">
-                        <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span>✓ Case Created &amp; Information Saved</span>
+                  {/* Case Created & Journey Feedback Banner (Only shown when personal case journey is active) */}
+                  {streamState.journeyStage && streamState.journeyStage !== 'IDLE' && (
+                    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-500/20 pb-2">
+                        <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-400 font-bold">
+                          <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                          <span>✓ Case Created &amp; Information Saved</span>
+                        </div>
+                        <span className="text-[11px] text-muted-foreground">Current Stage: Fact Extraction &amp; Intake</span>
                       </div>
-                      <span className="text-[11px] text-muted-foreground">Current Stage: Fact Extraction &amp; Intake</span>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Nyaya AI is analyzing your statements. Next: Upload relevant documents in the Evidence section or review initial legal analysis.
+                      </p>
+                      <div className="pt-1">
+                        <NyayaPath currentStepIndex={1} variant="compact" />
+                      </div>
                     </div>
-                    <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      Nyaya AI is analyzing your statements. Next: Upload relevant documents in the Evidence section or review initial legal analysis.
-                    </p>
-                    <div className="pt-1">
-                      <NyayaPath currentStepIndex={1} variant="compact" />
-                    </div>
-                  </div>
+                  )}
 
                   {messages.map((m) =>
                     m.role === 'user' ? (

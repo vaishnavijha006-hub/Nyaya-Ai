@@ -14,15 +14,31 @@ interface CasePackageWorkspaceProps {
 }
 
 export function CasePackageWorkspace({ caseId = 'case-1', className }: CasePackageWorkspaceProps) {
+  const isEmployment = caseId === 'case-2' || caseId === 'demo-case-2' || caseId.includes('2') || caseId.toLowerCase().includes('employment');
+
   const sections = [
     { num: 1, title: '1. Executive Case Summary', status: 'READY', desc: 'Overview of legal claim & dispute background.' },
     { num: 2, title: '2. Parties & Contact Details', status: 'READY', desc: 'Complainant & Respondent identity details.' },
     { num: 3, title: '3. Factual Chronology of Events', status: 'READY', desc: 'Date-wise timeline of agreement, dispute & notices.' },
     { num: 4, title: '4. Legal Issues in Dispute', status: 'READY', desc: 'Framed statutory issues under Indian law.' },
     { num: 5, title: '5. Evidence Matrix', status: 'READY', desc: 'Cross-reference of claims against uploaded proofs.' },
-    { num: 6, title: '6. Applicable Statutory Provisions', status: 'READY', desc: 'Transfer of Property Act, Contract Act & Rent Control Acts.' },
+    {
+      num: 6,
+      title: '6. Applicable Statutory Provisions',
+      status: 'READY',
+      desc: isEmployment
+        ? 'Payment of Wages Act 1936, Industrial Disputes Act 1947 & Karnataka Shops Act.'
+        : 'Transfer of Property Act, Contract Act & Rent Control Acts.',
+    },
     { num: 7, title: '7. Document Annexure Index', status: 'READY', desc: 'Indexed list of agreements, receipts & messages.' },
-    { num: 8, title: '8. Missing Information & Gaps', status: 'NEEDS_ATTENTION', desc: 'Outstanding page 3 scan & payment confirmation.' },
+    {
+      num: 8,
+      title: '8. Missing Information & Gaps',
+      status: 'NEEDS_ATTENTION',
+      desc: isEmployment
+        ? 'Outstanding formal Demand Notice & employer response.'
+        : 'Outstanding page 3 scan & payment confirmation.',
+    },
     { num: 9, title: '9. Advocate Review Notes', status: 'READY', desc: 'Blank template for advocate legal opinion.' },
   ];
 

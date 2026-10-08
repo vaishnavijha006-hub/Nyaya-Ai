@@ -5,39 +5,72 @@ import { ShieldCheck, AlertCircle, CheckCircle2, HelpCircle } from 'lucide-react
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
-export function ReadinessOverview({ className }: { className?: string }) {
-  const categories = [
-    {
-      category: 'CASE INFORMATION',
-      status: 'Good Progress',
-      detail: 'Core timeline, parties, and dispute details extracted.',
-      badgeClass: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 font-semibold',
-    },
-    {
-      category: 'EVIDENCE',
-      status: 'Needs 2 Documents',
-      detail: 'Rent agreement uploaded; missing payment receipt & bank statement.',
-      badgeClass: 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-400 font-semibold',
-    },
-    {
-      category: 'LEGAL REVIEW',
-      status: 'Preliminary',
-      detail: 'Statutory grounds under Rent Control Act identified; requires advocate review.',
-      badgeClass: 'border-blue-500/40 bg-blue-500/10 text-blue-800 dark:text-blue-400 font-semibold',
-    },
-    {
-      category: 'ACTION READINESS',
-      status: 'Not Yet Ready',
-      detail: 'Complete evidence audit before issuing formal legal notice.',
-      badgeClass: 'border-slate-500/40 bg-slate-500/10 text-slate-800 dark:text-slate-300 font-semibold',
-    },
-  ];
+export function ReadinessOverview({ isEmployment = false, className }: { isEmployment?: boolean; className?: string }) {
+  const categories = isEmployment
+    ? [
+        {
+          category: 'CASE INFORMATION',
+          status: 'Good Progress',
+          detail: 'Employment tenure, wage structure, and termination timeline extracted.',
+          badgeClass: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 font-semibold',
+        },
+        {
+          category: 'EVIDENCE',
+          status: '2 Verified',
+          detail: 'Offer letter & bank statement verified; termination notice uploaded.',
+          badgeClass: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 font-semibold',
+        },
+        {
+          category: 'LEGAL REVIEW',
+          status: 'Preliminary',
+          detail: 'Statutory grounds under Payment of Wages Act & Karnataka Shops Act identified.',
+          badgeClass: 'border-blue-500/40 bg-blue-500/10 text-blue-800 dark:text-blue-400 font-semibold',
+        },
+        {
+          category: 'ACTION READINESS',
+          status: 'Ready for Notice',
+          detail: 'Evidence dossier prepared; ready to issue statutory 15-day salary demand notice.',
+          badgeClass: 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-400 font-semibold',
+        },
+      ]
+    : [
+        {
+          category: 'CASE INFORMATION',
+          status: 'Good Progress',
+          detail: 'Core timeline, parties, and dispute details extracted.',
+          badgeClass: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 font-semibold',
+        },
+        {
+          category: 'EVIDENCE',
+          status: 'Needs 2 Documents',
+          detail: 'Rent agreement uploaded; missing payment receipt & bank statement.',
+          badgeClass: 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-400 font-semibold',
+        },
+        {
+          category: 'LEGAL REVIEW',
+          status: 'Preliminary',
+          detail: 'Statutory grounds under Rent Control Act identified; requires advocate review.',
+          badgeClass: 'border-blue-500/40 bg-blue-500/10 text-blue-800 dark:text-blue-400 font-semibold',
+        },
+        {
+          category: 'ACTION READINESS',
+          status: 'Not Yet Ready',
+          detail: 'Complete evidence audit before issuing formal legal notice.',
+          badgeClass: 'border-slate-500/40 bg-slate-500/10 text-slate-800 dark:text-slate-300 font-semibold',
+        },
+      ];
 
-  const whatsMissing = [
-    'Signed Rent Agreement page 3 or security deposit bank transfer receipt',
-    'Confirmation of written eviction notice date',
-    'Advocate review prior to formal tribunal filing',
-  ];
+  const whatsMissing = isEmployment
+    ? [
+        'Formal Statutory Demand Notice to employer demanding unpaid salary',
+        'Employer response to informal email demands',
+        'Conciliation petition filing with Labor Officer',
+      ]
+    : [
+        'Signed Rent Agreement page 3 or security deposit bank transfer receipt',
+        'Confirmation of written eviction notice date',
+        'Advocate review prior to formal tribunal filing',
+      ];
 
   return (
     <div className={cn('legal-card p-5 space-y-4', className)}>

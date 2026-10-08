@@ -20,7 +20,7 @@ load_dotenv(dotenv_path)
 logger = logging.getLogger(__name__)
 
 # Primary Groq model
-PRIMARY_MODEL = "llama-3.3-70b-versatile"
+PRIMARY_MODEL = "qwen/qwen3.6-27b"
 
 @functools.lru_cache(maxsize=1)
 def get_groq_client():
